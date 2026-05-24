@@ -459,14 +459,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
     </div>
 
     <!-- Summary hero -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px;" id="budgetHero"></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;" id="budgetHero"></div>
 
     <!-- Category breakdown -->
     <div id="budgetCategories"></div>
 
     <!-- Note -->
     <div style="font-size:11px;color:var(--text3);margin-top:16px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:9px;line-height:1.6;">
-      <strong style="color:var(--text2);">How this works:</strong> Fixed items (Accommodation, Savings/DPS) are always shown at their set amount. Variable items are compared against your actual transactions for this month. Transactions are matched automatically — you can also assign transactions manually using the 💬 note feature.
+      <strong style="color:var(--text2);">How this works:</strong>
+      <strong>auto</strong> = pulled from your transactions automatically.
+      <strong>cash</strong> = mostly cash spending — use the <em>+ Log spending</em> button to break down your cash withdrawals.
+      <strong>manual</strong> = you set this aside yourself (e.g. transfer to savings account).
+      Fixed items always show at their set amount regardless of tracked transactions.
     </div>
   </div>
 
@@ -587,32 +591,49 @@ const S = {
 };
 
 // ── BUDGET DATA ───────────────────────────────────────────────────────────────
+// Income: ৳18,000/month (AB Bank salary)
+// Shared costs split with flatmates (tracked in shared Excel)
+// DPS = Savings instrument. bKash DPS ৳2,500 + BRAC DPS ৳500 = ৳3,000 total DPS
+// Savings target ৳3,000 is separate from DPS
+
+const INCOME = 18000;
+
 const BUDGET = [
-  { group:'Accommodation', fixed:true, items:[
-    { name:'Rent',          budget:3833, fixed:true },
-    { name:'Wifi',          budget:71,   fixed:true },
-    { name:'Electricity',   budget:300,  fixed:false },
-    { name:'Khala',         budget:571,  fixed:true },
-    { name:'Miscellaneous', budget:200,  fixed:false },
-  ]},
-  { group:'Food', fixed:false, items:[
-    { name:'Breakfast & Snacks', budget:600,  fixed:false },
-    { name:'Lunch',              budget:2400, fixed:false },
-    { name:'Dinner',             budget:2400, fixed:false },
-    { name:'Food miscellaneous', budget:1000, fixed:false },
-  ]},
-  { group:'Lifestyle', fixed:false, items:[
-    { name:'Outings',             budget:1000, fixed:false },
-    { name:'Clothes & Accessories', budget:1700, fixed:false },
-  ]},
-  { group:'Miscellaneous', fixed:false, items:[
-    { name:'Miscellaneous', budget:925, fixed:false },
-  ]},
-  { group:'Savings & DPS', fixed:true, items:[
-    { name:'Monthly savings target', budget:3000, fixed:true },
-    { name:'bKash DPS',              budget:2500, fixed:true },
-    { name:'BRAC Bank DPS',          budget:500,  fixed:true },
-  ]},
+  {
+    group: 'Shared Apartment',
+    note:  'Split with flatmates — tracked in shared Excel. Lunch & Dinner depends on home meals.',
+    fixed: 'partial',
+    items: [
+      { name:'Rent (your share)',   budget:3833, fixed:true,  track:'auto' },
+      { name:'Wifi (your share)',   budget:71,   fixed:true,  track:'auto' },
+      { name:'Khala (your share)',  budget:571,  fixed:true,  track:'auto' },
+      { name:'Lunch (your share)',  budget:2400, fixed:false, track:'cash' },
+      { name:'Dinner (your share)', budget:2400, fixed:false, track:'cash' },
+    ]
+  },
+  {
+    group: 'Personal Fixed',
+    note:  'These come out every month regardless.',
+    fixed: true,
+    items: [
+      { name:'Electricity',  budget:300,  fixed:false, track:'auto' },
+      { name:'DPS (bKash)',  budget:2500, fixed:true,  track:'auto' },
+      { name:'DPS (BRAC)',   budget:500,  fixed:true,  track:'auto' },
+      { name:'Savings',      budget:3000, fixed:true,  track:'manual' },
+    ]
+  },
+  {
+    group: 'Personal Variable',
+    note:  'Mostly cash — use the cash logger to track. These are estimates.',
+    fixed: false,
+    items: [
+      { name:'Breakfast & Snacks', budget:600,  fixed:false, track:'cash' },
+      { name:'Food miscellaneous', budget:1000, fixed:false, track:'cash' },
+      { name:'Outings',            budget:1000, fixed:false, track:'cash' },
+      { name:'Clothes & Accessories', budget:1700, fixed:false, track:'cash' },
+      { name:'Miscellaneous',      budget:925,  fixed:false, track:'cash' },
+    ]
+  },
 ];
 
 // ── DPS DATA ─────────────────────────────────────────────────────────────────
@@ -1210,108 +1231,145 @@ function changeBudgetMonth(dir){
 async function renderBudget(){
   el('budgetMonthLabel').textContent = mkLabel(S.budgetMonth);
 
-  // Load transactions for budget month if different from current
-  let txns = S.transactions.filter(t=>!t.duplicateOf && t.type==='OUT');
+  // Load transactions for this month
+  let txns = S.transactions;
   if(S.budgetMonth !== S.currentMonth){
-    try {
-      const r = await get('getTransactions',{month:S.budgetMonth});
-      txns = (r.transactions||[]).filter(t=>!t.duplicateOf && t.type==='OUT');
-    } catch(e){}
+    try { const r=await get('getTransactions',{month:S.budgetMonth}); txns=r.transactions||[]; } catch(e){}
   }
 
+  const outTxns     = txns.filter(t=>!t.duplicateOf && t.type==='OUT');
+  const totalActual = outTxns.reduce((s,t)=>s+Number(t.amount),0);
   const totalBudget = BUDGET.reduce((s,g)=>s+g.items.reduce((ss,i)=>ss+i.budget,0),0);
-  const totalActual = txns.reduce((s,t)=>s+Number(t.amount),0);
-  const totalFixed  = BUDGET.reduce((s,g)=>s+g.items.filter(i=>i.fixed).reduce((ss,i)=>ss+i.budget,0),0);
-  const netRemaining = totalBudget - totalActual;
 
-  // Hero summary cards
+  // Detect auto-tracked items from transactions
+  const dpsBkash  = outTxns.filter(t=>t.description&&/bkash.*dps|dps.*bkash/i.test(t.description)).reduce((s,t)=>s+Number(t.amount),0);
+  const dpsBrac   = outTxns.filter(t=>t.description&&/brac.*dps|dps.*brac/i.test(t.description)).reduce((s,t)=>s+Number(t.amount),0);
+  const electricity = outTxns.filter(t=>t.description&&/electric|wasa|utility|bill/i.test(t.description)).reduce((s,t)=>s+Number(t.amount),0);
+
+  // Cash withdrawals this month — unallocated pool
+  const cashWithdrawals = outTxns.filter(t=>t.description&&/atm|cash.*withdrawal|withdrawal.*cash/i.test(t.description)).reduce((s,t)=>s+Number(t.amount),0);
+
+  // Income
+  const totalIn = txns.filter(t=>t.type==='IN').reduce((s,t)=>s+Number(t.amount),0);
+  const income  = totalIn || INCOME;
+  const leftover = income - totalActual;
+
+  // ── SUMMARY HERO ──────────────────────────────────────────────────────────
   el('budgetHero').innerHTML = [
-    {label:'Total budget',   value:'৳'+fmt(totalBudget),    sub:'this month',            color:'var(--text)'},
-    {label:'Actual spending',value:'৳'+fmt(totalActual),    sub:'tracked transactions',   color: totalActual>totalBudget?'var(--red)':'var(--text)'},
-    {label:'Remaining',      value:(netRemaining>=0?'৳':'-৳')+fmt(Math.abs(netRemaining)), sub: netRemaining>=0?'within budget':'over budget', color:netRemaining>=0?'var(--green)':'var(--red)'},
-  ].map(h=>`
-    <div class="metric">
-      <div class="metric-label">${h.label}</div>
-      <div class="metric-value" style="color:${h.color};font-size:22px;">${h.value}</div>
-      <div class="metric-sub">${h.sub}</div>
-    </div>`).join('');
+    { label:'Monthly income',    value:'+৳'+fmt(income),                     sub:'AB Bank salary',                      col:'var(--green)' },
+    { label:'Total budget',      value:'৳'+fmt(totalBudget),                  sub:'all planned expenses',                col:'var(--text)' },
+    { label:'Tracked spending',  value:'৳'+fmt(totalActual),                  sub:'from transactions',                   col: totalActual>totalBudget?'var(--red)':'var(--text)' },
+    { label:'Left after budget', value:(leftover>=0?'+ ':'- ')+'৳'+fmt(Math.abs(income-totalBudget)), sub: income>=totalBudget?'within income':'over income', col:income>=totalBudget?'var(--green)':'var(--red)' },
+  ].map(h=>`<div class="metric">
+    <div class="metric-label">${h.label}</div>
+    <div class="metric-value" style="color:${h.col};font-size:20px;">${h.value}</div>
+    <div class="metric-sub">${h.sub}</div>
+  </div>`).join('');
 
-  el('budgetSub').textContent = mkLabel(S.budgetMonth)+' · ৳'+fmt(totalBudget)+' total budget';
+  el('budgetSub').textContent = mkLabel(S.budgetMonth)+' · ৳'+fmt(income)+' income · ৳'+fmt(totalBudget)+' budgeted';
 
-  // Category groups
-  el('budgetCategories').innerHTML = BUDGET.map(group => {
+  // ── CASH LOGGER BANNER ────────────────────────────────────────────────────
+  let cashBanner = '';
+  if(cashWithdrawals > 0){
+    cashBanner = `<div style="background:var(--amber-bg);border:1px solid rgba(122,82,14,0.2);border-radius:11px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div>
+        <div style="font-size:12px;font-weight:500;color:var(--amber);margin-bottom:3px;">💵 Cash withdrawn this month: ৳${fmt(cashWithdrawals)}</div>
+        <div style="font-size:11px;color:#5A3C0A;">This cash is untracked. If you spent it on specific things, add manual transactions to keep your budget accurate.</div>
+      </div>
+      <button onclick="openAddModal()" style="background:var(--amber);color:#fff;border:none;padding:7px 14px;border-radius:7px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;">+ Log spending</button>
+    </div>`;
+  }
+
+  // ── SAVINGS BLOCK ─────────────────────────────────────────────────────────
+  const totalDPS     = dpsBkash + dpsBrac || (2500 + 500);
+  const savingsBlock = `<div style="background:var(--green-bg);border:1px solid rgba(42,122,90,0.2);border-radius:11px;padding:16px 20px;margin-bottom:14px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div style="font-size:10px;font-weight:500;letter-spacing:0.8px;text-transform:uppercase;color:var(--green);">💰 Savings this month</div>
+      <div style="font-size:12px;color:var(--green);font-weight:500;">Fixed · Auto-deducted</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+      ${[
+        {label:'DPS (bKash)',    budget:2500, actual: dpsBkash||2500,  note:'Auto monthly'},
+        {label:'DPS (BRAC)',     budget:500,  actual: dpsBrac||500,    note:'Auto monthly'},
+        {label:'Savings target', budget:3000, actual: 3000,            note:'Transfer to BRAC'},
+      ].map(s=>`<div style="background:rgba(255,255,255,0.6);border-radius:8px;padding:10px 12px;">
+        <div style="font-size:11px;color:var(--green);margin-bottom:4px;">${s.label}</div>
+        <div style="font-size:18px;font-weight:500;color:var(--text);">৳${fmt(s.actual)}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;">${s.note}</div>
+      </div>`).join('')}
+    </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(42,122,90,0.15);font-size:12px;color:var(--green);">
+      Total saved this month: <strong>৳${fmt(totalDPS + 3000)}</strong> &nbsp;·&nbsp; ${Math.round(((totalDPS+3000)/income)*100)}% of income
+    </div>
+  </div>`;
+
+  // ── GROUP CARDS ───────────────────────────────────────────────────────────
+  const groupCards = BUDGET.map(group => {
     const groupBudget = group.items.reduce((s,i)=>s+i.budget,0);
+    const isFixed     = group.fixed === true || group.fixed === 'partial';
 
-    // For variable groups, try to match actual spending
-    // Fixed groups show budget amount directly
-    let groupActual = 0;
+    // For Personal Fixed group, use auto-detected amounts
+    // For others, actual = budget for fixed items, 0 for variable (user tracks manually)
     const itemRows = group.items.map(item => {
       let actual = 0;
-      if(!item.fixed){
-        // DPS and savings: always show as budget amount (auto-deducted)
-        actual = item.budget;
-      } else {
-        actual = item.budget; // fixed = always this amount
-      }
-      // For non-fixed non-savings, estimate from transactions proportionally
-      if(!item.fixed && group.group !== 'Savings & DPS'){
-        // distribute actual spending across non-fixed items proportionally
-        actual = 0; // will be overridden below
-      }
+      if(item.name.includes('DPS (bKash)'))   actual = dpsBkash || item.budget;
+      else if(item.name.includes('DPS (BRAC)')) actual = dpsBrac || item.budget;
+      else if(item.name.includes('Electricity')) actual = electricity || 0;
+      else if(item.fixed) actual = item.budget;
+      else actual = 0; // variable — user manually logs or cash logger
       return { ...item, actual };
     });
 
-    // For variable groups distribute actual txn spending proportionally by budget weight
-    if(!group.fixed && group.group !== 'Savings & DPS'){
-      const varTxnTotal = totalActual - totalFixed; // rough variable spending
-      const groupWeight = groupBudget / (totalBudget - totalFixed || 1);
-      groupActual = Math.round(varTxnTotal * groupWeight);
-      // Distribute within group by item weight
-      const groupItemBudgetTotal = groupBudget;
-      itemRows.forEach(item => {
-        item.actual = Math.round(groupActual * (item.budget / groupItemBudgetTotal));
-      });
-    } else {
-      groupActual = groupBudget; // fixed groups always on-budget
-      itemRows.forEach(item => { item.actual = item.budget; });
-    }
+    const groupActual = itemRows.reduce((s,i)=>s+i.actual,0);
+    const groupOver   = groupActual > groupBudget;
 
-    const groupOver = groupActual > groupBudget;
-    const groupPct  = groupBudget > 0 ? Math.min(Math.round((groupActual/groupBudget)*100),100) : 0;
-    const fillClass = groupActual > groupBudget ? 'over' : groupActual > groupBudget*0.85 ? 'warn' : 'ok';
+    const fixedBadge = group.fixed===true
+      ? '<span style="font-size:10px;padding:2px 7px;border-radius:4px;background:#EEF2FF;color:#4338CA;">Fixed</span>'
+      : group.fixed==='partial'
+      ? '<span style="font-size:10px;padding:2px 7px;border-radius:4px;background:#FDF0DC;color:#7A520E;">Partial</span>'
+      : '<span style="font-size:10px;padding:2px 7px;border-radius:4px;background:#F0F0F0;color:#666;">Variable</span>';
 
     return `<div class="budget-group">
       <div class="budget-group-hdr">
         <div style="display:flex;align-items:center;gap:8px;">
           <div class="budget-group-name">${group.group}</div>
-          ${group.fixed?'<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#EEF2FF;color:#4338CA;">Fixed</span>':''}
+          ${fixedBadge}
         </div>
         <div class="budget-group-totals">
-          <span style="color:${groupOver?'var(--red)':'var(--text2)'};">৳${fmt(groupActual)} actual</span>
-          <span style="color:var(--text3);">/ ৳${fmt(groupBudget)} budget</span>
+          <span style="color:${groupOver?'var(--red)':'var(--text2)'};">৳${fmt(groupActual)}</span>
+          <span style="color:var(--text3);">/ ৳${fmt(groupBudget)}</span>
         </div>
       </div>
-      ${itemRows.map(item => {
-        const pct   = item.budget > 0 ? Math.min(Math.round((item.actual/item.budget)*100),150) : 0;
-        const over  = item.actual > item.budget;
-        const fill  = over ? 'over' : pct > 85 ? 'warn' : 'ok';
-        const diff  = item.budget - item.actual;
+      ${group.note ? `<div style="font-size:11px;color:var(--text3);padding:8px 20px;border-bottom:1px solid var(--border);font-style:italic;">${group.note}</div>` : ''}
+      ${itemRows.map(item=>{
+        const pct  = item.budget>0 ? Math.min(Math.round((item.actual/item.budget)*100),100) : 0;
+        const over = item.actual > item.budget;
+        const fill = over?'over':pct>85?'warn':'ok';
+        const diff = item.budget - item.actual;
+        const trackBadge = item.track==='auto'
+          ? '<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:#E2F2EB;color:#1A6644;">auto</span>'
+          : item.track==='cash'
+          ? '<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:#FDF0DC;color:#7A520E;">cash</span>'
+          : '<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:#F0F0F0;color:#888;">manual</span>';
         return `<div class="budget-item-row">
-          <div class="budget-item-name">${item.name}${item.fixed?'<span class="budget-item-fixed">Fixed</span>':''}</div>
+          <div class="budget-item-name" style="display:flex;align-items:center;gap:6px;">${item.name}${item.fixed?'<span class="budget-item-fixed">Fixed</span>':''}${trackBadge}</div>
           <div class="budget-bar-col">
             <div class="budget-bar-track">
-              <div class="budget-bar-fill ${fill}" style="width:${Math.min(pct,100)}%;"></div>
+              <div class="budget-bar-fill ${fill}" style="width:${pct}%;"></div>
             </div>
+            ${item.actual===0&&!item.fixed?'<div style="font-size:9px;color:var(--text3);margin-top:2px;">Not tracked — add manually or log cash</div>':''}
           </div>
           <div class="budget-amounts">
-            <div class="budget-actual">৳${fmt(item.actual)}</div>
+            <div class="budget-actual">${item.actual>0?'৳'+fmt(item.actual):'—'}</div>
             <div class="budget-limit">of ৳${fmt(item.budget)}</div>
-            <div class="budget-diff ${diff>=0?'saved':'over'}">${diff>=0?'৳'+fmt(diff)+' left':'-৳'+fmt(Math.abs(diff))+' over'}</div>
+            ${item.actual>0?`<div class="budget-diff ${diff>=0?'saved':'over'}">${diff>=0?'৳'+fmt(diff)+' left':'-৳'+fmt(Math.abs(diff))+' over'}</div>`:''}
           </div>
         </div>`;
       }).join('')}
     </div>`;
   }).join('');
+
+  el('budgetCategories').innerHTML = cashBanner + savingsBlock + groupCards;
 }
 
 // ── GO ────────────────────────────────────────────────────────────────────────

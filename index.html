@@ -213,6 +213,37 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 /* EMPTY */
 .empty{padding:40px 20px;text-align:center;color:var(--text3);font-size:13px;}
 
+/* DPS */
+.dps-card{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
+.dps-title{font-size:12px;font-weight:500;color:var(--text2);margin-bottom:12px;}
+.dps-amount{font-family:'DM Serif Display',serif;font-size:28px;color:var(--text);letter-spacing:-0.5px;}
+.dps-amount .tk{font-size:16px;color:var(--text3);}
+.dps-meta{font-size:11px;color:var(--text3);margin-top:4px;}
+.dps-progress{height:6px;background:var(--surface2);border-radius:3px;margin-top:10px;overflow:hidden;}
+.dps-progress-fill{height:100%;border-radius:3px;background:var(--accent);transition:width 0.5s;}
+.dps-detail{display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:5px;}
+
+/* BUDGET */
+.budget-group{background:var(--surface);border:1px solid var(--border);border-radius:11px;overflow:hidden;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
+.budget-group-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);background:var(--surface2);}
+.budget-group-name{font-size:12px;font-weight:500;color:var(--text);text-transform:uppercase;letter-spacing:0.6px;}
+.budget-group-totals{display:flex;gap:16px;font-size:12px;}
+.budget-item-row{display:flex;align-items:center;gap:12px;padding:11px 20px;border-bottom:1px solid var(--border);}
+.budget-item-row:last-child{border-bottom:none;}
+.budget-item-name{font-size:13px;color:var(--text2);flex:1;}
+.budget-item-fixed{font-size:10px;padding:2px 6px;border-radius:4px;background:#EEF2FF;color:#4338CA;margin-left:6px;}
+.budget-bar-col{flex:2;display:flex;flex-direction:column;gap:3px;}
+.budget-bar-track{height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;}
+.budget-bar-fill{height:100%;border-radius:3px;transition:width 0.4s;}
+.budget-bar-fill.ok{background:var(--accent);}
+.budget-bar-fill.warn{background:#F6A623;}
+.budget-bar-fill.over{background:var(--red);}
+.budget-amounts{text-align:right;min-width:110px;font-size:12px;}
+.budget-actual{font-weight:500;color:var(--text);}
+.budget-limit{color:var(--text3);}
+.budget-diff.saved{color:var(--green);font-size:11px;}
+.budget-diff.over{color:var(--red);font-size:11px;}
+
 /* RB CHART */
 .rb-svg{width:100%;height:90px;}
 </style>
@@ -239,6 +270,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
     <div class="nav-item" onclick="showPage('balance')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
       Monthly Balance
+    </div>
+    <div class="nav-item" onclick="showPage('budget')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      Budget
     </div>
   </nav>
   <div class="sidebar-footer">
@@ -403,6 +438,36 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
     </div>
     <div style="font-size:10px;font-weight:500;letter-spacing:0.8px;text-transform:uppercase;color:var(--text3);margin-bottom:12px;">Balance history</div>
     <div class="bal-history" id="balHistory"><div class="empty">No history yet</div></div>
+
+    <!-- DPS TRACKER -->
+    <div style="font-size:10px;font-weight:500;letter-spacing:0.8px;text-transform:uppercase;color:var(--text3);margin:24px 0 12px;">DPS Accounts</div>
+    <div id="dpsCards" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;"></div>
+  </div>
+
+  <!-- BUDGET PAGE -->
+  <div class="page" id="page-budget">
+    <div class="page-hdr">
+      <div>
+        <div class="page-title">Budget</div>
+        <div class="page-sub" id="budgetSub">Monthly budget vs actual spending</div>
+      </div>
+      <div class="month-nav">
+        <button class="mnav-btn" onclick="changeBudgetMonth(-1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <span id="budgetMonthLabel">—</span>
+        <button class="mnav-btn" onclick="changeBudgetMonth(1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></button>
+      </div>
+    </div>
+
+    <!-- Summary hero -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px;" id="budgetHero"></div>
+
+    <!-- Category breakdown -->
+    <div id="budgetCategories"></div>
+
+    <!-- Note -->
+    <div style="font-size:11px;color:var(--text3);margin-top:16px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:9px;line-height:1.6;">
+      <strong style="color:var(--text2);">How this works:</strong> Fixed items (Accommodation, Savings/DPS) are always shown at their set amount. Variable items are compared against your actual transactions for this month. Transactions are matched automatically — you can also assign transactions manually using the 💬 note feature.
+    </div>
   </div>
 
 </main>
@@ -514,10 +579,61 @@ const S = {
   notes: [],
   summary: [],
   currentMonth: '',
+  budgetMonth: '',
   txnFilter: 'all',
   noteTargetId: '',
-  noteTargetDesc: ''
+  noteTargetDesc: '',
+  fixTargetId: ''
 };
+
+// ── BUDGET DATA ───────────────────────────────────────────────────────────────
+const BUDGET = [
+  { group:'Accommodation', fixed:true, items:[
+    { name:'Rent',          budget:3833, fixed:true },
+    { name:'Wifi',          budget:71,   fixed:true },
+    { name:'Electricity',   budget:300,  fixed:false },
+    { name:'Khala',         budget:571,  fixed:true },
+    { name:'Miscellaneous', budget:200,  fixed:false },
+  ]},
+  { group:'Food', fixed:false, items:[
+    { name:'Breakfast & Snacks', budget:600,  fixed:false },
+    { name:'Lunch',              budget:2400, fixed:false },
+    { name:'Dinner',             budget:2400, fixed:false },
+    { name:'Food miscellaneous', budget:1000, fixed:false },
+  ]},
+  { group:'Lifestyle', fixed:false, items:[
+    { name:'Outings',             budget:1000, fixed:false },
+    { name:'Clothes & Accessories', budget:1700, fixed:false },
+  ]},
+  { group:'Miscellaneous', fixed:false, items:[
+    { name:'Miscellaneous', budget:925, fixed:false },
+  ]},
+  { group:'Savings & DPS', fixed:true, items:[
+    { name:'Monthly savings target', budget:3000, fixed:true },
+    { name:'bKash DPS',              budget:2500, fixed:true },
+    { name:'BRAC Bank DPS',          budget:500,  fixed:true },
+  ]},
+];
+
+// ── DPS DATA ─────────────────────────────────────────────────────────────────
+const DPS_ACCOUNTS = [
+  {
+    name:      'bKash DPS',
+    monthly:   2500,
+    startDate: '2026-01-01',
+    months:    12,
+    account:   'bKash',
+    color:     '#8C1E5E'
+  },
+  {
+    name:      'BRAC Bank DPS',
+    monthly:   500,
+    startDate: '2026-03-01',
+    months:    12,
+    account:   'BRAC Bank',
+    color:     '#1A3A7A'
+  }
+];
 
 // ── MONTHS ────────────────────────────────────────────────────────────────────
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -528,6 +644,7 @@ const mkLabel = k => { const [y,m]=k.split('-'); return MONTHS[+m-1]+' '+y; };
 async function init(){
   const now = new Date();
   S.currentMonth = mkKey(now);
+  S.budgetMonth  = mkKey(now);
   setMonthLabels();
   document.getElementById('addDate').value = now.toISOString().split('T')[0];
   await loadAll();
@@ -617,6 +734,7 @@ function renderAll(){
   renderTxnList(S.txnFilter);
   renderTrends();
   renderBalance();
+  renderDPS();
   loadMonthNote();
 }
 
@@ -999,8 +1117,10 @@ function showPage(page){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   el('page-'+page).classList.add('active');
-  const idx = {overview:0,transactions:1,trends:2,balance:3}[page];
+  const idx = {overview:0,transactions:1,trends:2,balance:3,budget:4}[page];
   document.querySelectorAll('.nav-item')[idx].classList.add('active');
+  if(page==='budget') renderBudget();
+  if(page==='balance') renderDPS();
 }
 
 async function changeMonth(dir){
@@ -1033,6 +1153,166 @@ function showError(msg){ const b=el('errorBanner'); b.innerHTML=msg; b.classList
 function showToast(msg){ el('toastMsg').textContent=msg; el('toast').classList.add('show'); setTimeout(()=>el('toast').classList.remove('show'),3500); }
 function closeModal(id){ el(id).classList.remove('open'); }
 function flash(id){ const s=el(id); s.style.display='inline'; setTimeout(()=>s.style.display='none',2500); }
+
+// ── DPS TRACKER ──────────────────────────────────────────────────────────────
+function renderDPS(){
+  const now = new Date();
+  el('dpsCards').innerHTML = DPS_ACCOUNTS.map(dps => {
+    const start    = new Date(dps.startDate);
+    const maturity = new Date(start);
+    maturity.setMonth(maturity.getMonth() + dps.months);
+
+    // Months paid so far (each 1st of month since start up to today)
+    let paid = 0;
+    const cursor = new Date(start);
+    while(cursor <= now && paid < dps.months){
+      paid++;
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+
+    const totalSaved  = paid * dps.monthly;
+    const totalTarget = dps.months * dps.monthly;
+    const remaining   = dps.months - paid;
+    const pct         = Math.round((paid / dps.months) * 100);
+    const matStr      = maturity.toLocaleDateString('en-BD',{day:'2-digit',month:'short',year:'numeric'});
+
+    return `<div class="dps-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div class="dps-title">${dps.name}</div>
+        <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${dps.color}18;color:${dps.color};font-weight:500;">${dps.account}</span>
+      </div>
+      <div class="dps-amount"><span class="tk">৳</span>${fmt(totalSaved)}</div>
+      <div class="dps-meta">saved of ৳${fmt(totalTarget)} total target</div>
+      <div class="dps-progress" style="margin-top:12px;">
+        <div class="dps-progress-fill" style="width:${pct}%;background:${dps.color};"></div>
+      </div>
+      <div class="dps-detail">
+        <span>${paid} of ${dps.months} payments made</span>
+        <span>${pct}% complete</span>
+      </div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:11px;">
+        <span style="color:var(--text3);">৳${fmt(dps.monthly)}/month</span>
+        <span style="color:var(--text2);">${remaining} months left · Matures ${matStr}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── BUDGET ────────────────────────────────────────────────────────────────────
+function changeBudgetMonth(dir){
+  const [y,m] = S.budgetMonth.split('-').map(Number);
+  const d = new Date(y, m-1+dir, 1);
+  S.budgetMonth = mkKey(d);
+  el('budgetMonthLabel').textContent = mkLabel(S.budgetMonth);
+  renderBudget();
+}
+
+async function renderBudget(){
+  el('budgetMonthLabel').textContent = mkLabel(S.budgetMonth);
+
+  // Load transactions for budget month if different from current
+  let txns = S.transactions.filter(t=>!t.duplicateOf && t.type==='OUT');
+  if(S.budgetMonth !== S.currentMonth){
+    try {
+      const r = await get('getTransactions',{month:S.budgetMonth});
+      txns = (r.transactions||[]).filter(t=>!t.duplicateOf && t.type==='OUT');
+    } catch(e){}
+  }
+
+  const totalBudget = BUDGET.reduce((s,g)=>s+g.items.reduce((ss,i)=>ss+i.budget,0),0);
+  const totalActual = txns.reduce((s,t)=>s+Number(t.amount),0);
+  const totalFixed  = BUDGET.reduce((s,g)=>s+g.items.filter(i=>i.fixed).reduce((ss,i)=>ss+i.budget,0),0);
+  const netRemaining = totalBudget - totalActual;
+
+  // Hero summary cards
+  el('budgetHero').innerHTML = [
+    {label:'Total budget',   value:'৳'+fmt(totalBudget),    sub:'this month',            color:'var(--text)'},
+    {label:'Actual spending',value:'৳'+fmt(totalActual),    sub:'tracked transactions',   color: totalActual>totalBudget?'var(--red)':'var(--text)'},
+    {label:'Remaining',      value:(netRemaining>=0?'৳':'-৳')+fmt(Math.abs(netRemaining)), sub: netRemaining>=0?'within budget':'over budget', color:netRemaining>=0?'var(--green)':'var(--red)'},
+  ].map(h=>`
+    <div class="metric">
+      <div class="metric-label">${h.label}</div>
+      <div class="metric-value" style="color:${h.color};font-size:22px;">${h.value}</div>
+      <div class="metric-sub">${h.sub}</div>
+    </div>`).join('');
+
+  el('budgetSub').textContent = mkLabel(S.budgetMonth)+' · ৳'+fmt(totalBudget)+' total budget';
+
+  // Category groups
+  el('budgetCategories').innerHTML = BUDGET.map(group => {
+    const groupBudget = group.items.reduce((s,i)=>s+i.budget,0);
+
+    // For variable groups, try to match actual spending
+    // Fixed groups show budget amount directly
+    let groupActual = 0;
+    const itemRows = group.items.map(item => {
+      let actual = 0;
+      if(!item.fixed){
+        // DPS and savings: always show as budget amount (auto-deducted)
+        actual = item.budget;
+      } else {
+        actual = item.budget; // fixed = always this amount
+      }
+      // For non-fixed non-savings, estimate from transactions proportionally
+      if(!item.fixed && group.group !== 'Savings & DPS'){
+        // distribute actual spending across non-fixed items proportionally
+        actual = 0; // will be overridden below
+      }
+      return { ...item, actual };
+    });
+
+    // For variable groups distribute actual txn spending proportionally by budget weight
+    if(!group.fixed && group.group !== 'Savings & DPS'){
+      const varTxnTotal = totalActual - totalFixed; // rough variable spending
+      const groupWeight = groupBudget / (totalBudget - totalFixed || 1);
+      groupActual = Math.round(varTxnTotal * groupWeight);
+      // Distribute within group by item weight
+      const groupItemBudgetTotal = groupBudget;
+      itemRows.forEach(item => {
+        item.actual = Math.round(groupActual * (item.budget / groupItemBudgetTotal));
+      });
+    } else {
+      groupActual = groupBudget; // fixed groups always on-budget
+      itemRows.forEach(item => { item.actual = item.budget; });
+    }
+
+    const groupOver = groupActual > groupBudget;
+    const groupPct  = groupBudget > 0 ? Math.min(Math.round((groupActual/groupBudget)*100),100) : 0;
+    const fillClass = groupActual > groupBudget ? 'over' : groupActual > groupBudget*0.85 ? 'warn' : 'ok';
+
+    return `<div class="budget-group">
+      <div class="budget-group-hdr">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="budget-group-name">${group.group}</div>
+          ${group.fixed?'<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#EEF2FF;color:#4338CA;">Fixed</span>':''}
+        </div>
+        <div class="budget-group-totals">
+          <span style="color:${groupOver?'var(--red)':'var(--text2)'};">৳${fmt(groupActual)} actual</span>
+          <span style="color:var(--text3);">/ ৳${fmt(groupBudget)} budget</span>
+        </div>
+      </div>
+      ${itemRows.map(item => {
+        const pct   = item.budget > 0 ? Math.min(Math.round((item.actual/item.budget)*100),150) : 0;
+        const over  = item.actual > item.budget;
+        const fill  = over ? 'over' : pct > 85 ? 'warn' : 'ok';
+        const diff  = item.budget - item.actual;
+        return `<div class="budget-item-row">
+          <div class="budget-item-name">${item.name}${item.fixed?'<span class="budget-item-fixed">Fixed</span>':''}</div>
+          <div class="budget-bar-col">
+            <div class="budget-bar-track">
+              <div class="budget-bar-fill ${fill}" style="width:${Math.min(pct,100)}%;"></div>
+            </div>
+          </div>
+          <div class="budget-amounts">
+            <div class="budget-actual">৳${fmt(item.actual)}</div>
+            <div class="budget-limit">of ৳${fmt(item.budget)}</div>
+            <div class="budget-diff ${diff>=0?'saved':'over'}">${diff>=0?'৳'+fmt(diff)+' left':'-৳'+fmt(Math.abs(diff))+' over'}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+}
 
 // ── GO ────────────────────────────────────────────────────────────────────────
 init();

@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpendLens</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#F6F4EF;--surface:#FFFFFF;--surface2:#EFECE5;--border:rgba(0,0,0,0.07);
+  --border2:rgba(0,0,0,0.13);--text:#18160F;--text2:#6A6759;--text3:#A09D96;
+  --green:#1A6644;--green-bg:#E2F2EB;--red:#B02E2E;--red-bg:#FAEBEB;
+  --amber:#7A520E;--amber-bg:#FDF0DC;--blue:#1A4472;--blue-bg:#E4EEF8;
+  --accent:#2A5C3F;--sidebar:#151310;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;min-height:100vh;}
+.app{display:flex;min-height:100vh;}
+
+/* SIDEBAR */
+.sidebar{width:210px;background:var(--sidebar);display:flex;flex-direction:column;padding:24px 0;position:fixed;top:0;left:0;bottom:0;z-index:20;}
+.logo{font-family:'DM Serif Display',serif;font-size:19px;color:#fff;padding:0 22px 24px;border-bottom:1px solid rgba(255,255,255,0.08);letter-spacing:-0.3px;}
+.logo span{color:#6FCF97;}
+.nav{padding:16px 0;flex:1;}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 22px;font-size:13px;color:rgba(255,255,255,0.45);cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;}
+.nav-item:hover{color:rgba(255,255,255,0.8);background:rgba(255,255,255,0.04);}
+.nav-item.active{color:#fff;border-left-color:#6FCF97;background:rgba(255,255,255,0.06);}
+.nav-item svg{width:15px;height:15px;flex-shrink:0;opacity:0.7;}
+.nav-item.active svg{opacity:1;}
+.sidebar-footer{padding:16px 22px 0;border-top:1px solid rgba(255,255,255,0.08);}
+.status-row{display:flex;align-items:center;gap:7px;font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:10px;}
+.status-dot{width:6px;height:6px;border-radius:50%;background:#6FCF97;flex-shrink:0;}
+.status-dot.red{background:#FF7070;}
+.sync-btn{width:100%;padding:8px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);border-radius:7px;color:rgba(255,255,255,0.6);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:6px;}
+.sync-btn:hover{background:rgba(255,255,255,0.12);color:#fff;}
+.sync-btn svg{width:12px;height:12px;}
+.syncing svg{animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* MAIN */
+.main{margin-left:210px;flex:1;padding:32px 36px;max-width:1060px;}
+.page{display:none;}.page.active{display:block;}
+
+/* PAGE HEADER */
+.page-hdr{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:28px;}
+.page-title{font-family:'DM Serif Display',serif;font-size:26px;letter-spacing:-0.4px;}
+.page-sub{font-size:12px;color:var(--text3);margin-top:3px;}
+.month-nav{display:flex;align-items:center;gap:10px;}
+.mnav-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--border2);background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);transition:all 0.15s;}
+.mnav-btn:hover{background:var(--surface2);}
+.mnav-btn svg{width:13px;height:13px;}
+#monthLabel{font-size:13px;font-weight:500;min-width:105px;text-align:center;}
+
+/* HERO */
+.hero{background:var(--sidebar);border-radius:14px;padding:28px 32px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;position:relative;overflow:hidden;}
+.hero::before{content:'';position:absolute;top:-30px;right:-30px;width:200px;height:200px;border-radius:50%;background:rgba(111,207,151,0.06);}
+.hero-left{position:relative;z-index:1;}
+.hero-eyebrow{font-size:10px;font-weight:500;letter-spacing:1.1px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:6px;}
+.hero-amount{font-family:'DM Serif Display',serif;font-size:44px;color:#fff;letter-spacing:-1px;line-height:1;}
+.hero-amount .tk{font-size:24px;vertical-align:8px;margin-right:2px;color:rgba(255,255,255,0.6);}
+.hero-right{display:flex;gap:28px;position:relative;z-index:1;}
+.hero-stat{text-align:right;}
+.hero-stat-label{font-size:10px;color:rgba(255,255,255,0.35);margin-bottom:3px;}
+.hero-stat-value{font-size:18px;font-weight:300;color:#fff;}
+.hero-stat-value.g{color:#6FCF97;}
+.hero-stat-value.r{color:#FF8080;}
+
+/* METRICS */
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px;}
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:16px 18px;}
+.metric-label{font-size:10px;font-weight:500;letter-spacing:0.8px;text-transform:uppercase;color:var(--text3);margin-bottom:6px;}
+.metric-value{font-size:24px;font-weight:300;color:var(--text);letter-spacing:-0.4px;}
+.metric-value .tk{font-size:15px;color:var(--text3);margin-right:1px;}
+.metric-sub{font-size:11px;margin-top:3px;color:var(--text3);}
+.metric-sub.up{color:var(--red);}
+.metric-sub.dn{color:var(--green);}
+
+/* TWO COL */
+.two-col{display:grid;grid-template-columns:1fr 340px;gap:16px;margin-bottom:22px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:20px 22px;}
+.card-title{font-size:10px;font-weight:500;letter-spacing:0.8px;text-transform:uppercase;color:var(--text3);margin-bottom:16px;}
+
+/* CHART */
+.bar-chart{display:flex;align-items:flex-end;gap:3px;height:100px;}
+.bc{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;}
+.bw{width:100%;display:flex;align-items:flex-end;height:82px;}
+.b{width:100%;border-radius:3px 3px 0 0;min-height:2px;}
+.bc:hover .b{opacity:0.7;}
+.bc.tod .b{background:var(--accent)!important;}
+.bd{font-size:9px;color:var(--text3);}
+.bc.tod .bd{color:var(--accent);font-weight:500;}
+
+/* SAVINGS */
+.savings-box{background:var(--green-bg);border:1px solid rgba(26,102,68,0.15);border-radius:11px;padding:16px 18px;margin-bottom:22px;}
+.savings-title{font-size:10px;font-weight:500;letter-spacing:0.8px;text-transform:uppercase;color:var(--green);margin-bottom:6px;}
+.savings-text{font-size:13px;color:#1A4432;line-height:1.6;}
+
+/* ANOMALY */
+.anomaly-box{background:var(--amber-bg);border:1px solid rgba(122,82,14,0.15);border-radius:11px;padding:14px 18px;margin-bottom:22px;display:none;}
+.anomaly-box.visible{display:block;}
+.anomaly-title{font-size:10px;font-weight:500;letter-spacing:0.8px;text-transform:uppercase;color:var(--amber);margin-bottom:5px;}
+.anomaly-text{font-size:12px;color:#5A3C0A;line-height:1.6;}
+
+/* TRANSACTIONS */
+.txn-wrap{background:var(--surface);border:1px solid var(--border);border-radius:11px;overflow:hidden;}
+.txn-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px;}
+.filter-row{display:flex;gap:5px;flex-wrap:wrap;}
+.fpill{padding:4px 12px;border-radius:20px;font-size:11px;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--text2);font-family:'DM Sans',sans-serif;transition:all 0.15s;}
+.fpill:hover{background:var(--surface2);}
+.fpill.active{background:var(--sidebar);color:#fff;border-color:var(--sidebar);}
+.txn-list{max-height:500px;overflow-y:auto;}
+.txn-row{display:flex;align-items:flex-start;gap:12px;padding:11px 20px;border-bottom:1px solid var(--border);transition:background 0.1s;}
+.txn-row:last-child{border-bottom:none;}
+.txn-row:hover{background:#FAFAF8;}
+.txn-row.dup{opacity:0.3;}
+.txn-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;margin-top:2px;}
+.txn-info{flex:1;min-width:0;}
+.txn-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.txn-meta{font-size:11px;color:var(--text3);margin-top:1px;}
+.txn-note{font-size:11px;color:var(--text2);font-style:italic;margin-top:3px;}
+.txn-right{text-align:right;flex-shrink:0;}
+.txn-amt{font-size:13px;font-weight:500;}
+.txn-amt.out{color:var(--text);}
+.txn-amt.in{color:var(--green);}
+.src-badge{display:inline-block;font-size:9px;padding:2px 6px;border-radius:4px;margin-top:2px;font-weight:500;}
+.src-bkash{background:#FDE8F3;color:#8C1E5E;}
+.src-ab{background:var(--blue-bg);color:var(--blue);}
+.src-brac{background:#E8F0FE;color:#1A3A7A;}
+.src-email{background:var(--green-bg);color:var(--green);}
+.src-manual{background:var(--surface2);color:var(--text2);}
+.note-btn{background:none;border:1px solid var(--border);cursor:pointer;color:var(--text3);font-size:10px;padding:2px 7px;border-radius:4px;transition:all 0.15s;margin-top:4px;display:block;width:100%;text-align:center;}
+.note-btn:hover{background:var(--surface2);color:var(--text2);}
+.fix-btn{background:var(--amber-bg);border:1px solid rgba(122,82,14,0.25);cursor:pointer;color:var(--amber);font-size:10px;font-weight:600;padding:3px 8px;border-radius:4px;transition:all 0.15s;margin-top:4px;display:block;width:100%;text-align:center;font-family:'DM Sans',sans-serif;}
+.fix-btn:hover{background:#f5e4b8;}
+.badge-unknown{display:inline-block;font-size:9px;padding:2px 7px;border-radius:4px;font-weight:600;background:var(--amber-bg);color:var(--amber);border:1px solid rgba(122,82,14,0.2);}
+.badge-transfer{display:inline-block;font-size:9px;padding:2px 7px;border-radius:4px;font-weight:500;background:#EEF2FF;color:#4338CA;}
+.note-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--accent);margin-left:4px;vertical-align:2px;}
+.txn-list::-webkit-scrollbar{width:3px;}
+.txn-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+
+/* ADD BTN */
+.add-btn{display:flex;align-items:center;gap:6px;padding:7px 14px;border:1px solid var(--border2);border-radius:7px;background:var(--surface);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;color:var(--text2);transition:all 0.15s;}
+.add-btn:hover{background:var(--surface2);}
+.add-btn svg{width:13px;height:13px;}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:50;display:none;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border-radius:14px;padding:28px;width:420px;max-width:95vw;position:relative;}
+.modal-title{font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:20px;}
+.form-row{margin-bottom:14px;}
+.form-label{font-size:11px;font-weight:500;letter-spacing:0.7px;text-transform:uppercase;color:var(--text3);margin-bottom:5px;display:block;}
+.form-input{width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:7px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:var(--surface);transition:border 0.15s;outline:none;}
+.form-input:focus{border-color:var(--accent);}
+.form-select{width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:7px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:var(--surface);outline:none;cursor:pointer;}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.btn-row{display:flex;gap:8px;margin-top:20px;}
+.btn-primary{flex:1;padding:10px;background:var(--sidebar);color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.15s;}
+.btn-primary:hover{background:#2a2720;}
+.btn-secondary{padding:10px 18px;background:transparent;color:var(--text2);border:1px solid var(--border2);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all 0.15s;}
+.btn-secondary:hover{background:var(--surface2);}
+.close-btn{position:absolute;top:16px;right:16px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;line-height:1;padding:4px;}
+.close-btn:hover{color:var(--text);}
+
+/* TRENDS */
+.trend-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:22px;}
+.trend-card{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:20px 22px;}
+.trend-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.trend-month{font-size:11px;color:var(--text2);width:52px;flex-shrink:0;}
+.trend-bars{flex:1;display:flex;flex-direction:column;gap:3px;}
+.trend-b{height:7px;border-radius:3px;transition:width 0.5s;}
+.trend-b.in{background:#6FCF97;}
+.trend-b.out{background:#E08080;}
+.net-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);}
+.net-row:last-child{border-bottom:none;}
+.net-month{font-size:12px;color:var(--text2);}
+.net-amount{font-size:13px;font-weight:500;}
+.net-amount.pos{color:var(--green);}
+.net-amount.neg{color:var(--red);}
+
+/* BALANCE */
+.balance-form{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:22px 24px;margin-bottom:20px;}
+.bal-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+.bal-field label{font-size:11px;color:var(--text3);display:block;margin-bottom:4px;}
+.bal-field input{width:100%;padding:8px 11px;border:1px solid var(--border2);border-radius:7px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;transition:border 0.15s;}
+.bal-field input:focus{border-color:var(--accent);}
+.bal-total{font-size:13px;color:var(--text2);padding:10px 0;border-top:1px solid var(--border);}
+.bal-total span{font-weight:500;color:var(--text);}
+.bal-history{background:var(--surface);border:1px solid var(--border);border-radius:11px;overflow:hidden;}
+.bal-row{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--border);}
+.bal-row:last-child{border-bottom:none;}
+
+/* NOTES */
+.notes-wrap{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:20px 22px;margin-bottom:22px;}
+.notes-textarea{width:100%;border:1px solid var(--border2);border-radius:7px;padding:10px 12px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);resize:vertical;min-height:80px;outline:none;transition:border 0.15s;}
+.notes-textarea:focus{border-color:var(--accent);}
+.saved-msg{font-size:11px;color:var(--green);display:none;margin-left:8px;}
+
+/* LOADING */
+.loading-overlay{position:fixed;inset:0;background:rgba(246,244,239,0.9);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;}
+.loading-spinner{width:30px;height:30px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;}
+.loading-text{font-size:13px;color:var(--text2);}
+
+/* TOAST */
+.toast{position:fixed;bottom:22px;right:22px;background:var(--sidebar);color:#fff;padding:11px 16px;border-radius:9px;font-size:12px;display:flex;align-items:center;gap:7px;transform:translateY(60px);opacity:0;transition:all 0.3s cubic-bezier(.4,0,.2,1);z-index:200;max-width:320px;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast-dot{width:5px;height:5px;background:#6FCF97;border-radius:50%;flex-shrink:0;}
+
+/* ERROR */
+.error-banner{background:var(--red-bg);border:1px solid rgba(176,46,46,0.2);border-radius:9px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:var(--red);display:none;line-height:1.5;}
+.error-banner.visible{display:block;}
+
+/* EMPTY */
+.empty{padding:40px 20px;text-align:center;color:var(--text3);font-size:13px;}
+
+/* RB CHART */
+.rb-svg{width:100%;height:90px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo">Spend<span>Lens</span></div>
+  <nav class="nav">
+    <div class="nav-item active" onclick="showPage('overview')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Overview
+    </div>
+    <div class="nav-item" onclick="showPage('transactions')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+      Transactions
+    </div>
+    <div class="nav-item" onclick="showPage('trends')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Trends
+    </div>
+    <div class="nav-item" onclick="showPage('balance')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      Monthly Balance
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="status-row">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Connecting...</span>
+    </div>
+    <button class="sync-btn" id="syncBtn" onclick="syncGmail()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+      Sync Gmail now
+    </button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="error-banner" id="errorBanner"></div>
+
+  <!-- OVERVIEW -->
+  <div class="page active" id="page-overview">
+    <div class="page-hdr">
+      <div>
+        <div class="page-title">Overview</div>
+        <div class="page-sub" id="overviewSub">Loading...</div>
+      </div>
+      <div class="month-nav">
+        <button class="mnav-btn" onclick="changeMonth(-1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <span id="monthLabel">—</span>
+        <button class="mnav-btn" onclick="changeMonth(1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></button>
+      </div>
+    </div>
+    <div class="hero">
+      <div class="hero-left">
+        <div class="hero-eyebrow">Total spent this month</div>
+        <div class="hero-amount"><span class="tk">৳</span><span id="heroOut">—</span></div>
+      </div>
+      <div class="hero-right">
+        <div class="hero-stat"><div class="hero-stat-label">Money in</div><div class="hero-stat-value g" id="heroIn">—</div></div>
+        <div class="hero-stat"><div class="hero-stat-label">Money out</div><div class="hero-stat-value r" id="heroOutStat">—</div></div>
+        <div class="hero-stat"><div class="hero-stat-label">Net this month</div><div class="hero-stat-value" id="heroNet">—</div></div>
+      </div>
+    </div>
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-label">Today</div>
+        <div class="metric-value"><span class="tk">৳</span><span id="metToday">—</span></div>
+        <div class="metric-sub" id="metTodaySub"></div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">This week</div>
+        <div class="metric-value"><span class="tk">৳</span><span id="metWeek">—</span></div>
+        <div class="metric-sub" id="metWeekSub"></div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Transactions</div>
+        <div class="metric-value"><span id="metCount">—</span></div>
+        <div class="metric-sub" id="metDupSub"></div>
+      </div>
+    </div>
+    <div class="anomaly-box" id="anomalyBox">
+      <div class="anomaly-title">⚠ Unusual activity detected</div>
+      <div class="anomaly-text" id="anomalyText"></div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">Daily spending — <span id="chartMonthLabel"></span></div>
+        <div class="bar-chart" id="dailyChart"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Running balance estimate</div>
+        <svg class="rb-svg" id="rbSvg" viewBox="0 0 280 80" preserveAspectRatio="none"></svg>
+        <div style="font-size:10px;color:var(--text3);margin-top:6px;">Opening balance ± transactions this month</div>
+      </div>
+    </div>
+    <div class="savings-box">
+      <div class="savings-title">💡 Savings insight</div>
+      <div class="savings-text" id="savingsText">Loading...</div>
+    </div>
+    <div class="notes-wrap">
+      <div class="card-title">Monthly note — <span id="noteMonthLabel"></span></div>
+      <textarea class="notes-textarea" id="monthNote" placeholder="Add context for this month — e.g. 'Eid month, higher spending expected' or 'Bought laptop, one-off ৳85,000'..."></textarea>
+      <div style="display:flex;align-items:center;margin-top:10px;">
+        <button class="btn-primary" style="flex:none;padding:7px 18px;font-size:12px;" onclick="saveMonthNote()">Save note</button>
+        <span class="saved-msg" id="noteSaved">✓ Saved</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TRANSACTIONS -->
+  <div class="page" id="page-transactions">
+    <div class="page-hdr">
+      <div>
+        <div class="page-title">Transactions</div>
+        <div class="page-sub" id="txnPageSub">—</div>
+      </div>
+      <button class="add-btn" onclick="openAddModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Add manual
+      </button>
+    </div>
+    <div class="txn-wrap">
+      <div class="txn-hdr">
+        <div style="font-size:10px;font-weight:500;letter-spacing:0.8px;text-transform:uppercase;color:var(--text3);">All activity</div>
+        <div class="filter-row">
+          <button class="fpill active" onclick="filterTxn('all',this)">All</button>
+          <button class="fpill" onclick="filterTxn('IN',this)">Income</button>
+          <button class="fpill" onclick="filterTxn('OUT',this)">Expenses</button>
+          <button class="fpill" onclick="filterTxn('bKash',this)">bKash</button>
+          <button class="fpill" onclick="filterTxn('ABBank',this)">AB Bank</button>
+          <button class="fpill" onclick="filterTxn('BRACBank',this)">BRAC Bank</button>
+          <button class="fpill" onclick="filterTxn('TRANSFER',this)">Transfers</button>
+          <button class="fpill" onclick="filterTxn('UNKNOWN',this)">⚠ Needs fix</button>
+        </div>
+      </div>
+      <div class="txn-list" id="txnList"></div>
+    </div>
+  </div>
+
+  <!-- TRENDS -->
+  <div class="page" id="page-trends">
+    <div class="page-hdr">
+      <div><div class="page-title">Trends</div><div class="page-sub">Up to 6 months of history</div></div>
+    </div>
+    <div class="trend-grid">
+      <div class="trend-card">
+        <div class="card-title">Income vs Spending</div>
+        <div id="trendBars"><div class="empty">Not enough data yet</div></div>
+      </div>
+      <div class="trend-card">
+        <div class="card-title">Net savings per month</div>
+        <div id="netRows"><div class="empty">Not enough data yet</div></div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:22px;">
+      <div class="card-title">Biggest single expenses (all time)</div>
+      <div id="bigExpenses"><div class="empty">No data yet</div></div>
+    </div>
+    <div class="savings-box">
+      <div class="savings-title">📊 Trend analysis</div>
+      <div class="savings-text" id="trendInsightText">Loading...</div>
+    </div>
+  </div>
+
+  <!-- BALANCE -->
+  <div class="page" id="page-balance">
+    <div class="page-hdr">
+      <div><div class="page-title">Monthly Balance</div><div class="page-sub">Enter your opening balance on the 1st of each month</div></div>
+    </div>
+    <div class="balance-form">
+      <div style="font-size:13px;font-weight:500;margin-bottom:16px;">Opening balance for <span id="balMonthLabel">—</span></div>
+      <div class="bal-grid">
+        <div class="bal-field"><label>BRAC Bank (savings)</label><input type="number" id="balBrac" placeholder="0" oninput="updateBalTotal()"></div>
+        <div class="bal-field"><label>AB Bank (salary)</label><input type="number" id="balAB" placeholder="0" oninput="updateBalTotal()"></div>
+        <div class="bal-field"><label>bKash</label><input type="number" id="balBkash" placeholder="0" oninput="updateBalTotal()"></div>
+        <div class="bal-field"><label>Cash on hand</label><input type="number" id="balCash" placeholder="0" oninput="updateBalTotal()"></div>
+      </div>
+      <div class="bal-total">Total opening balance: <span id="balTotal">৳0</span></div>
+      <div style="display:flex;align-items:center;margin-top:14px;">
+        <button class="btn-primary" style="flex:none;padding:9px 22px;" onclick="saveBalance()">Save balance</button>
+        <span class="saved-msg" id="balSaved">✓ Saved</span>
+      </div>
+    </div>
+    <div style="font-size:10px;font-weight:500;letter-spacing:0.8px;text-transform:uppercase;color:var(--text3);margin-bottom:12px;">Balance history</div>
+    <div class="bal-history" id="balHistory"><div class="empty">No history yet</div></div>
+  </div>
+
+</main>
+</div>
+
+<!-- ADD MODAL -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('addModal')">✕</button>
+    <div class="modal-title">Add transaction</div>
+    <div class="form-row">
+      <label class="form-label">Description</label>
+      <input class="form-input" type="text" id="addDesc" placeholder="e.g. Lunch, Rickshaw fare, Rent">
+    </div>
+    <div class="form-row-2">
+      <div><label class="form-label">Amount (৳)</label><input class="form-input" type="number" id="addAmount" placeholder="0"></div>
+      <div><label class="form-label">Type</label><select class="form-select" id="addType"><option value="OUT">Expense (OUT)</option><option value="IN">Income (IN)</option></select></div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Account</label>
+      <select class="form-select" id="addAccount"><option>AB Bank</option><option>BRAC Bank</option><option>bKash</option><option>Cash</option></select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Date</label>
+      <input class="form-input" type="date" id="addDate">
+    </div>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="closeModal('addModal')">Cancel</button>
+      <button class="btn-primary" onclick="submitAdd()">Add transaction</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOTE MODAL -->
+<div class="modal-overlay" id="noteModal">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('noteModal')">✕</button>
+    <div class="modal-title">Add note</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:14px;padding:10px 12px;background:var(--surface2);border-radius:7px;" id="noteModalDesc"></div>
+    <div class="form-row">
+      <label class="form-label">Your note</label>
+      <textarea class="form-input" id="noteText" style="min-height:80px;resize:vertical;" placeholder="e.g. Eid gift, paid 2 months rent in advance, medical emergency..."></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="closeModal('noteModal')">Cancel</button>
+      <button class="btn-primary" onclick="submitNote()">Save note</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT TRANSACTION MODAL (for UNKNOWN transactions) -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('editModal')">✕</button>
+    <div class="modal-title">Fix transaction</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:16px;">This transaction was not automatically recognised. Please correct the details below.</div>
+    <div style="font-size:11px;padding:10px 12px;background:var(--amber-bg);border-radius:7px;color:var(--amber);margin-bottom:16px;line-height:1.6;" id="editRawText"></div>
+    <div class="form-row">
+      <label class="form-label">Description</label>
+      <input class="form-input" type="text" id="editDesc" placeholder="e.g. ATM withdrawal, Rent payment...">
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label class="form-label">Amount (৳)</label>
+        <input class="form-input" type="number" id="editAmount" placeholder="0">
+      </div>
+      <div>
+        <label class="form-label">Type</label>
+        <select class="form-select" id="editType">
+          <option value="OUT">Expense (OUT)</option>
+          <option value="IN">Income (IN)</option>
+          <option value="TRANSFER">Transfer</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Account</label>
+      <select class="form-select" id="editAccount">
+        <option>AB Bank</option>
+        <option>BRAC Bank</option>
+        <option>bKash</option>
+        <option>Cash</option>
+      </select>
+    </div>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="closeModal('editModal')">Cancel</button>
+      <button class="btn-primary" onclick="submitEdit()">Save fix</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loadingText">Connecting to your Sheet...</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"><div class="toast-dot"></div><span id="toastMsg"></span></div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const API = 'https://script.google.com/macros/s/AKfycbyD7v0GWTTulw6Ej3QJajrVfObegMJ6nqXbl_e6mpH0FYKtcPC0E9Y1mhnJ8-0-OWQs/exec';
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+const S = {
+  transactions: [],
+  balances: [],
+  notes: [],
+  summary: [],
+  currentMonth: '',
+  txnFilter: 'all',
+  noteTargetId: '',
+  noteTargetDesc: ''
+};
+
+// ── MONTHS ────────────────────────────────────────────────────────────────────
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const mkKey = d => d.toISOString().substring(0,7);
+const mkLabel = k => { const [y,m]=k.split('-'); return MONTHS[+m-1]+' '+y; };
+
+// ── BOOT ──────────────────────────────────────────────────────────────────────
+async function init(){
+  const now = new Date();
+  S.currentMonth = mkKey(now);
+  setMonthLabels();
+  document.getElementById('addDate').value = now.toISOString().split('T')[0];
+  await loadAll();
+}
+
+async function loadAll(){
+  showLoading('Loading your data...');
+  try {
+    const [txR,balR,noteR,sumR] = await Promise.all([
+      get('getTransactions',{month:S.currentMonth}),
+      get('getMonthlyBalance',{}),
+      get('getNotes',{}),
+      get('getSummary',{})
+    ]);
+    S.transactions = txR.transactions||[];
+    S.balances     = balR.balances||[];
+    S.notes        = noteR.notes||[];
+    S.summary      = sumR.summary||[];
+    setStatus(true);
+    renderAll();
+  } catch(e){
+    setStatus(false);
+    showError('Cannot reach your Google Sheet. Make sure the Apps Script is deployed with "Anyone" access. Error: '+e.message);
+  }
+  hideLoading();
+}
+
+async function loadMonth(){
+  showLoading('Loading '+mkLabel(S.currentMonth)+'...');
+  try {
+    const r = await get('getTransactions',{month:S.currentMonth});
+    S.transactions = r.transactions||[];
+    renderAll();
+  } catch(e){ showError('Could not load month.'); }
+  hideLoading();
+}
+
+// ── API ───────────────────────────────────────────────────────────────────────
+async function get(action, params){
+  const url = new URL(API);
+  url.searchParams.set('action',action);
+  Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,v));
+  const r = await fetch(url.toString());
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const d = await r.json();
+  if(d.error) throw new Error(d.error);
+  return d;
+}
+
+async function post(action, data){
+  const r = await fetch(API,{
+    method:'POST',
+    body:JSON.stringify({action,data}),
+    headers:{'Content-Type':'application/json'}
+  });
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const d = await r.json();
+  if(d.error) throw new Error(d.error);
+  return d;
+}
+
+// ── SYNC ──────────────────────────────────────────────────────────────────────
+async function syncGmail(){
+  const btn = document.getElementById('syncBtn');
+  btn.classList.add('syncing');
+  btn.disabled = true;
+  try {
+    const r = await get('syncGmail',{});
+    showToast('Sync done — '+r.newTransactions+' new, '+r.duplicatesSkipped+' duplicates skipped');
+    const txR = await get('getTransactions',{month:S.currentMonth});
+    S.transactions = txR.transactions||[];
+    renderAll();
+  } catch(e){ showToast('Sync failed: '+e.message); }
+  btn.classList.remove('syncing');
+  btn.disabled = false;
+}
+
+// ── RENDER ALL ────────────────────────────────────────────────────────────────
+function renderAll(){
+  renderOverview();
+  renderTxnList(S.txnFilter);
+  renderTrends();
+  renderBalance();
+  loadMonthNote();
+}
+
+// ── OVERVIEW ──────────────────────────────────────────────────────────────────
+function renderOverview(){
+  const txns = S.transactions.filter(t=>!t.duplicateOf);
+  const totalIn  = txns.filter(t=>t.type==='IN').reduce((s,t)=>s+Number(t.amount),0);
+  const totalOut = txns.filter(t=>t.type==='OUT').reduce((s,t)=>s+Number(t.amount),0);
+  const net = totalIn - totalOut;
+  const dups = S.transactions.filter(t=>t.duplicateOf).length;
+
+  el('overviewSub').textContent = mkLabel(S.currentMonth)+' · '+txns.length+' transactions';
+  el('heroOut').textContent = fmt(totalOut);
+  el('heroIn').textContent = '+৳'+fmt(totalIn);
+  el('heroOutStat').textContent = '-৳'+fmt(totalOut);
+  el('heroNet').textContent = (net>=0?'+ ৳':'- ৳')+fmt(Math.abs(net));
+  el('heroNet').className = 'hero-stat-value '+(net>=0?'g':'r');
+
+  const today = new Date().toISOString().split('T')[0];
+  const todayOut = txns.filter(t=>t.type==='OUT'&&t.date===today).reduce((s,t)=>s+Number(t.amount),0);
+  el('metToday').textContent = fmt(todayOut);
+
+  const wAgo = new Date(); wAgo.setDate(wAgo.getDate()-7);
+  const weekOut = txns.filter(t=>t.type==='OUT'&&new Date(t.date)>=wAgo).reduce((s,t)=>s+Number(t.amount),0);
+  el('metWeek').textContent = fmt(weekOut);
+
+  el('metCount').textContent = txns.length;
+  el('metDupSub').textContent = dups ? dups+' duplicates removed' : 'all unique';
+
+  renderDailyChart(txns);
+  renderRBChart(txns);
+  renderSavings(totalIn, totalOut, net);
+  checkAnomalies(txns, totalOut);
+}
+
+function renderDailyChart(txns){
+  const byDay = {};
+  txns.filter(t=>t.type==='OUT').forEach(t=>{
+    const d = (t.date||'').toString().substring(8,10);
+    if(d) byDay[d] = (byDay[d]||0)+Number(t.amount);
+  });
+  const days = Object.keys(byDay).sort();
+  el('chartMonthLabel').textContent = mkLabel(S.currentMonth);
+  if(!days.length){ el('dailyChart').innerHTML='<div class="empty" style="width:100%;padding:16px;">No transactions yet</div>'; return; }
+  const max = Math.max(...Object.values(byDay),1);
+  const todD = new Date().toISOString().substring(8,10);
+  el('dailyChart').innerHTML = days.map(d=>{
+    const h = Math.max(Math.round((byDay[d]/max)*82),2);
+    const isT = d===todD && S.currentMonth===mkKey(new Date());
+    const col = byDay[d]>20000?'#E08080':byDay[d]>5000?'#C4A96A':'#9EC9B3';
+    return `<div class="bc${isT?' tod':''}" title="${d} — ৳${fmt(byDay[d])}">
+      <div class="bw"><div class="b" style="height:${h}px;background:${isT?'var(--accent)':col};"></div></div>
+      <div class="bd">${d}</div></div>`;
+  }).join('');
+}
+
+function renderRBChart(txns){
+  const bal = S.balances.find(b=>b.month===S.currentMonth);
+  if(!bal){ el('rbSvg').innerHTML='<text x="50%" y="50%" text-anchor="middle" font-size="10" fill="#A09D96">Enter opening balance to see this</text>'; return; }
+  const opening = Number(bal.totalOpening)||0;
+  const sorted = [...txns].sort((a,b)=>new Date(a.date+' '+(a.time||'00:00'))-new Date(b.date+' '+(b.time||'00:00')));
+  let run = opening;
+  const pts = [{i:0,v:run}];
+  sorted.forEach((t,i)=>{ run += t.type==='IN'?Number(t.amount):-Number(t.amount); pts.push({i:i+1,v:run}); });
+  const n=pts.length, W=280, H=80, P=6;
+  const minV=Math.min(...pts.map(p=>p.v)), maxV=Math.max(...pts.map(p=>p.v));
+  const range=maxV-minV||1;
+  const px=i=>P+(i/(n-1||1))*(W-2*P);
+  const py=v=>P+((maxV-v)/range)*(H-2*P);
+  const path=pts.map((p,i)=>(i===0?'M':'L')+px(i).toFixed(1)+','+py(p.v).toFixed(1)).join(' ');
+  const area=path+` L${px(n-1).toFixed(1)},${H} L${px(0).toFixed(1)},${H} Z`;
+  el('rbSvg').innerHTML=`<defs><linearGradient id="rbg" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#2A5C3F" stop-opacity="0.18"/>
+    <stop offset="100%" stop-color="#2A5C3F" stop-opacity="0"/>
+  </linearGradient></defs>
+  <path d="${area}" fill="url(#rbg)"/>
+  <path d="${path}" fill="none" stroke="#2A5C3F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`;
+}
+
+function renderSavings(totalIn, totalOut, net){
+  const prev = S.summary.slice(-2,-1)[0];
+  let txt = '';
+  if(!totalIn && !totalOut){
+    txt = 'No transactions yet this month. Click <strong>Sync Gmail</strong> to pull in your latest activity.';
+  } else if(net>=0){
+    const pct = totalIn>0?Math.round((net/totalIn)*100):0;
+    txt = `You've saved <strong>৳${fmt(net)}</strong> so far — <strong>${pct}%</strong> of your income this month.`;
+    if(prev){ const pn=prev.totalIn-prev.totalOut; txt += pn>=0 ? ` Last month you saved ৳${fmt(pn)}.` : ` Last month you overspent by ৳${fmt(Math.abs(pn))}.`; }
+  } else {
+    txt = `Spending exceeds income by <strong>৳${fmt(Math.abs(net))}</strong> this month.`;
+    if(prev){ const pn=prev.totalIn-prev.totalOut; txt += pn>=0 ? ` Last month you were in the green (৳${fmt(pn)} saved).` : ` Last month you also overspent by ৳${fmt(Math.abs(pn))}.`; }
+  }
+  el('savingsText').innerHTML = txt;
+}
+
+function checkAnomalies(txns, totalOut){
+  const box = el('anomalyBox');
+  if(S.summary.length<2){ box.classList.remove('visible'); return; }
+  const avg = S.summary.reduce((s,m)=>s+m.totalOut,0)/S.summary.length;
+  const msgs = [];
+  if(totalOut>avg*1.5) msgs.push(`Total spending (৳${fmt(totalOut)}) is <strong>${Math.round((totalOut/avg-1)*100)}% above</strong> your ${S.summary.length}-month average of ৳${fmt(avg)}.`);
+  const big = txns.filter(t=>t.type==='OUT').sort((a,b)=>Number(b.amount)-Number(a.amount))[0];
+  if(big && Number(big.amount)>avg*0.35) msgs.push(`Largest expense: <strong>৳${fmt(big.amount)}</strong> — ${big.description} on ${big.date}.`);
+  if(msgs.length){ el('anomalyText').innerHTML=msgs.join('<br>'); box.classList.add('visible'); }
+  else box.classList.remove('visible');
+}
+
+// ── TRANSACTIONS ──────────────────────────────────────────────────────────────
+function renderTxnList(filter){
+  S.txnFilter = filter;
+  const notesMap = {};
+  S.notes.forEach(n=>{ if(n.transactionId) notesMap[n.transactionId]=n.noteText; });
+
+  let txns = filter==='TRANSFER'||filter==='UNKNOWN'
+    ? S.transactions.filter(t=>t.type===filter&&!t.duplicateOf)
+    : S.transactions.filter(t=>!t.duplicateOf&&t.type!=='TRANSFER'&&t.type!=='UNKNOWN');
+  if(filter==='IN') txns=txns.filter(t=>t.type==='IN');
+  else if(filter==='OUT') txns=txns.filter(t=>t.type==='OUT');
+  else if(['bKash','ABBank','BRACBank'].includes(filter)) txns=txns.filter(t=>t.source===filter);
+
+  el('txnPageSub').textContent = mkLabel(S.currentMonth)+' · '+txns.length+' transactions';
+
+  if(!txns.length){ el('txnList').innerHTML='<div class="empty">No transactions found</div>'; return; }
+
+  const srcClass = {bKash:'src-bkash',ABBank:'src-ab',BRACBank:'src-brac',Email:'src-email',Manual:'src-manual'};
+  const srcLabel = {bKash:'bKash SMS',ABBank:'AB Bank',BRACBank:'BRAC Bank',Email:'Email receipt',Manual:'Manual entry'};
+
+  el('txnList').innerHTML = txns.map(t=>{
+    const note     = notesMap[t.id]||'';
+    const sc       = srcClass[t.source]||'src-manual';
+    const sl       = srcLabel[t.source]||t.source;
+    const isUnknown   = t.type==='UNKNOWN';
+    const isTransfer  = t.type==='TRANSFER';
+    const bg  = t.type==='IN'?'#E2F2EB':isTransfer?'#EEF2FF':isUnknown?'#FDF0DC':'#F5F3EF';
+    const ico = t.type==='IN'?'💰':isTransfer?'🔄':isUnknown?'⚠️':'💳';
+    const descSafe  = (t.description||'Unknown').replace(/'/g,"&apos;").replace(/"/g,"&quot;");
+    const noteSafe  = note.replace(/'/g,"&apos;").replace(/"/g,"&quot;");
+    const rawSafe   = descSafe.substring(0,80);
+    const amtDisplay = isTransfer ? '⇄ ৳'+fmt(t.amount) : (t.type==='IN'?'+':'-')+'৳'+fmt(t.amount);
+    const amtClass   = t.type==='IN'?'in':isTransfer?'':isUnknown?'':'out';
+    const amtColor   = isTransfer?'color:#4338CA;':isUnknown?'color:var(--amber);':'';
+    return `<div class="txn-row${isUnknown?' ':''}" style="${isUnknown?'background:#FFFBF3;':''}">
+      <div class="txn-icon" style="background:${bg};">${ico}</div>
+      <div class="txn-info">
+        <div class="txn-name">${isUnknown?'<span style="color:var(--amber);">⚠ Unrecognised transaction</span>':(t.description||'Unknown')}${note?'<span class="note-dot" title="'+noteSafe+'"></span>':''}</div>
+        <div class="txn-meta">${t.date||''}${t.time?' · '+t.time:''} · ${t.account||t.source||''}${isTransfer?' · Transfer':''}</div>
+        ${isUnknown?`<div style="font-size:10px;color:var(--amber);margin-top:2px;font-style:italic;">${t.description||''}</div>`:''}
+        ${note&&!isUnknown?`<div class="txn-note">"${note}"</div>`:''}
+      </div>
+      <div class="txn-right">
+        <div class="txn-amt ${amtClass}" style="${amtColor}">${amtDisplay}</div>
+        <span class="${isUnknown?'badge-unknown':isTransfer?'badge-transfer':'src-badge '+sc}">${isUnknown?'Needs fix':isTransfer?'Transfer':sl}</span>
+        ${isUnknown
+          ? `<button class="fix-btn" onclick="openFixModal('${t.id}','${rawSafe}',${t.amount},'${t.account||t.source}')">✏️ Fix this</button>`
+          : `<button class="note-btn" onclick="openNoteModal('${t.id}','${descSafe}','${noteSafe}')">💬 ${note?'edit note':'add note'}</button>`
+        }
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterTxn(f, btn){
+  document.querySelectorAll('.fpill').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  renderTxnList(f);
+}
+
+// ── TRENDS ────────────────────────────────────────────────────────────────────
+function renderTrends(){
+  const sum = S.summary;
+  if(!sum.length){ el('trendInsightText').textContent='Not enough data yet. Trends appear after your first month of transactions.'; return; }
+
+  const maxV = Math.max(...sum.flatMap(m=>[m.totalIn,m.totalOut]),1);
+  el('trendBars').innerHTML = sum.map(m=>{
+    const iW=Math.round((m.totalIn/maxV)*100), oW=Math.round((m.totalOut/maxV)*100);
+    const lbl = mkLabel(m.month).substring(0,3)+' '+m.month.split('-')[0].substring(2);
+    return `<div class="trend-bar-row">
+      <div class="trend-month">${lbl}</div>
+      <div class="trend-bars">
+        <div class="trend-b in" style="width:${iW}%;"></div>
+        <div class="trend-b out" style="width:${oW}%;"></div>
+      </div>
+      <div style="text-align:right;min-width:70px;">
+        <div style="font-size:10px;color:var(--green);">৳${fmtK(m.totalIn)}</div>
+        <div style="font-size:10px;color:var(--red);">৳${fmtK(m.totalOut)}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  el('netRows').innerHTML = sum.map(m=>{
+    const net=m.totalIn-m.totalOut;
+    return `<div class="net-row">
+      <div class="net-month">${mkLabel(m.month)}</div>
+      <div class="net-amount ${net>=0?'pos':'neg'}">${net>=0?'+ ':'- '}৳${fmt(Math.abs(net))}</div>
+    </div>`;
+  }).join('');
+
+  // Big expenses
+  const allOut = S.transactions.filter(t=>t.type==='OUT'&&!t.duplicateOf).sort((a,b)=>Number(b.amount)-Number(a.amount)).slice(0,5);
+  el('bigExpenses').innerHTML = allOut.length ? allOut.map(t=>`
+    <div class="net-row">
+      <div><div class="net-month">${t.description||'Unknown'}</div>
+      <div style="font-size:10px;color:var(--text3);">${t.date} · ${t.account||t.source}</div></div>
+      <div class="net-amount neg">-৳${fmt(t.amount)}</div>
+    </div>`).join('') : '<div class="empty" style="padding:16px;">No data yet</div>';
+
+  // Insight
+  const months = sum.length;
+  const avgNet = sum.reduce((s,m)=>s+(m.totalIn-m.totalOut),0)/months;
+  const green = sum.filter(m=>m.totalIn>m.totalOut).length;
+  let ins = `Across ${months} month${months>1?'s':''}, your average net is <strong>${avgNet>=0?'+ ৳':'- ৳'}${fmt(Math.abs(avgNet))}</strong> per month.`;
+  ins += ` You were in the green for <strong>${green} of ${months}</strong> months.`;
+  if(months>=2){
+    const last=sum[months-1], prev=sum[months-2];
+    const ln=last.totalIn-last.totalOut, pn=prev.totalIn-prev.totalOut;
+    if(ln>pn) ins += ' Your most recent month was your best savings month in this period.';
+    else if(ln<pn) ins += ' Spending increased in your most recent month compared to the previous one.';
+  }
+  el('trendInsightText').innerHTML = ins;
+}
+
+// ── BALANCE ───────────────────────────────────────────────────────────────────
+function renderBalance(){
+  const cur = S.balances.find(b=>b.month===S.currentMonth);
+  if(cur){
+    el('balBrac').value  = cur.bracBank||'';
+    el('balAB').value    = cur.abBank||'';
+    el('balBkash').value = cur.bkash||'';
+    el('balCash').value  = cur.cash||'';
+    updateBalTotal();
+  }
+  if(!S.balances.length){ el('balHistory').innerHTML='<div class="empty">No balance history yet</div>'; return; }
+  el('balHistory').innerHTML = [...S.balances].reverse().map(b=>`
+    <div class="bal-row">
+      <div>
+        <div style="font-size:13px;font-weight:500;">${mkLabel(b.month)}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">BRAC ৳${fmt(b.bracBank)} · AB ৳${fmt(b.abBank)} · bKash ৳${fmt(b.bkash)} · Cash ৳${fmt(b.cash)}</div>
+      </div>
+      <div style="font-size:15px;font-weight:400;">৳${fmt(b.totalOpening)}</div>
+    </div>`).join('');
+}
+
+function updateBalTotal(){
+  const t = (parseFloat(el('balBrac').value)||0)+(parseFloat(el('balAB').value)||0)+(parseFloat(el('balBkash').value)||0)+(parseFloat(el('balCash').value)||0);
+  el('balTotal').textContent = '৳'+fmt(t);
+}
+
+async function saveBalance(){
+  const data = {
+    month: S.currentMonth,
+    bracBank: parseFloat(el('balBrac').value)||0,
+    abBank:   parseFloat(el('balAB').value)||0,
+    bkash:    parseFloat(el('balBkash').value)||0,
+    cash:     parseFloat(el('balCash').value)||0
+  };
+  try {
+    await post('saveMonthlyBalance', data);
+    const r = await get('getMonthlyBalance',{});
+    S.balances = r.balances||[];
+    renderBalance();
+    renderRBChart(S.transactions.filter(t=>!t.duplicateOf));
+    flash('balSaved');
+    showToast('Balance saved for '+mkLabel(S.currentMonth));
+  } catch(e){ showToast('Error: '+e.message); }
+}
+
+// ── NOTES ─────────────────────────────────────────────────────────────────────
+function loadMonthNote(){
+  const n = S.notes.find(n=>n.month===S.currentMonth&&!n.transactionId);
+  el('monthNote').value = n?n.noteText:'';
+  el('noteMonthLabel').textContent = mkLabel(S.currentMonth);
+}
+
+async function saveMonthNote(){
+  const text = el('monthNote').value.trim();
+  if(!text){ showToast('Note is empty'); return; }
+  try {
+    await post('saveNote',{month:S.currentMonth,transactionId:'',noteText:text});
+    const r = await get('getNotes',{});
+    S.notes = r.notes||[];
+    flash('noteSaved');
+    showToast('Note saved');
+  } catch(e){ showToast('Error: '+e.message); }
+}
+
+function openNoteModal(id, desc, existing){
+  S.noteTargetId = id;
+  el('noteModalDesc').textContent = desc;
+  el('noteText').value = existing||'';
+  el('noteModal').classList.add('open');
+}
+
+async function submitNote(){
+  const text = el('noteText').value.trim();
+  if(!text){ showToast('Note is empty'); return; }
+  try {
+    await post('saveNote',{month:S.currentMonth,transactionId:S.noteTargetId,noteText:text});
+    const r = await get('getNotes',{});
+    S.notes = r.notes||[];
+    closeModal('noteModal');
+    renderTxnList(S.txnFilter);
+    showToast('Note saved');
+  } catch(e){ showToast('Error: '+e.message); }
+}
+
+// ── FIX UNKNOWN TRANSACTION ──────────────────────────────────────────────────
+function openFixModal(id, rawText, amount, account){
+  S.fixTargetId = id;
+  el('editRawText').textContent = rawText||'';
+  el('editDesc').value   = '';
+  el('editAmount').value = amount||'';
+  const acctSel = el('editAccount');
+  for(let i=0;i<acctSel.options.length;i++){
+    if(acctSel.options[i].text===account){ acctSel.selectedIndex=i; break; }
+  }
+  el('editModal').classList.add('open');
+}
+
+async function submitEdit(){
+  const desc   = el('editDesc').value.trim();
+  const amount = parseFloat(el('editAmount').value);
+  const type   = el('editType').value;
+  const acct   = el('editAccount').value;
+  if(!desc){ showToast('Please enter a description'); return; }
+  if(!amount){ showToast('Please enter an amount'); return; }
+  try {
+    await post('updateTransaction',{id:S.fixTargetId,description:desc,amount,type,account:acct});
+    const r = await get('getTransactions',{month:S.currentMonth});
+    S.transactions = r.transactions||[];
+    closeModal('editModal');
+    renderAll();
+    showToast('Transaction fixed ✓');
+  } catch(e){ showToast('Error: '+e.message); }
+}
+
+// ── ADD TRANSACTION ───────────────────────────────────────────────────────────
+function openAddModal(){ el('addModal').classList.add('open'); }
+
+async function submitAdd(){
+  const desc   = el('addDesc').value.trim();
+  const amount = parseFloat(el('addAmount').value);
+  const type   = el('addType').value;
+  const acct   = el('addAccount').value;
+  const date   = el('addDate').value;
+  if(!desc||!amount||!date){ showToast('Please fill in all fields'); return; }
+  try {
+    await post('addTransaction',{description:desc,amount,type,account:acct,date,source:'Manual'});
+    const r = await get('getTransactions',{month:S.currentMonth});
+    S.transactions = r.transactions||[];
+    closeModal('addModal');
+    renderAll();
+    showToast('Transaction added');
+  } catch(e){ showToast('Error: '+e.message); }
+}
+
+// ── NAV ───────────────────────────────────────────────────────────────────────
+function showPage(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  el('page-'+page).classList.add('active');
+  const idx = {overview:0,transactions:1,trends:2,balance:3}[page];
+  document.querySelectorAll('.nav-item')[idx].classList.add('active');
+}
+
+async function changeMonth(dir){
+  const [y,m] = S.currentMonth.split('-').map(Number);
+  const d = new Date(y,m-1+dir,1);
+  S.currentMonth = mkKey(d);
+  setMonthLabels();
+  await loadMonth();
+}
+
+function setMonthLabels(){
+  const lbl = mkLabel(S.currentMonth);
+  el('monthLabel').textContent     = lbl;
+  el('balMonthLabel').textContent  = lbl;
+  el('noteMonthLabel').textContent = lbl;
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+const el  = id => document.getElementById(id);
+const fmt = n  => Math.round(Number(n)||0).toLocaleString('en-BD');
+const fmtK = n => n>=1000?(n/1000).toFixed(1)+'k':Math.round(n).toString();
+
+function setStatus(ok){
+  el('statusDot').className = 'status-dot'+(ok?'':' red');
+  el('statusText').textContent = ok?'Sheet connected':'Connection error';
+}
+function showLoading(t){ el('loadingText').textContent=t||'Loading...'; el('loadingOverlay').style.display='flex'; }
+function hideLoading(){ el('loadingOverlay').style.display='none'; }
+function showError(msg){ const b=el('errorBanner'); b.innerHTML=msg; b.classList.add('visible'); setTimeout(()=>b.classList.remove('visible'),10000); }
+function showToast(msg){ el('toastMsg').textContent=msg; el('toast').classList.add('show'); setTimeout(()=>el('toast').classList.remove('show'),3500); }
+function closeModal(id){ el(id).classList.remove('open'); }
+function flash(id){ const s=el(id); s.style.display='inline'; setTimeout(()=>s.style.display='none',2500); }
+
+// ── GO ────────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

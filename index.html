@@ -895,12 +895,14 @@ async function saveBalance(){
 async function deleteBalance(month){
   if(!confirm('Delete balance entry for '+mkLabel(month)+'?')) return;
   try {
-    await post('deleteBalance',{month});
-    const r = await get('getMonthlyBalance',{});
-    S.balances = r.balances||[];
+    showLoading('Deleting...');
+    const r = await post('deleteBalance',{month});
+    const r2 = await get('getMonthlyBalance',{});
+    S.balances = r2.balances||[];
     renderBalance();
-    showToast('Balance entry deleted');
-  } catch(e){ showToast('Error: '+e.message); }
+    showToast('Deleted '+(r.deleted||0)+' entr'+(r.deleted===1?'y':'ies')+' for '+mkLabel(month));
+  } catch(e){ showToast('Delete error: '+e.message); }
+  finally { hideLoading(); }
 }
 
 // ── NOTES ─────────────────────────────────────────────────────────────────────

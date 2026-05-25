@@ -657,7 +657,11 @@ const DPS_ACCOUNTS = [
 
 // ── MONTHS ────────────────────────────────────────────────────────────────────
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const mkKey = d => d.toISOString().substring(0,7);
+const mkKey = d => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  return y+'-'+m;
+};
 const mkLabel = k => { const [y,m]=k.split('-'); return MONTHS[+m-1]+' '+y; };
 
 // ── BOOT ──────────────────────────────────────────────────────────────────────
@@ -1278,7 +1282,18 @@ function renderDPS(){
 // ── BUDGET ────────────────────────────────────────────────────────────────────
 function changeBudgetMonth(dir){
   const [y,m] = S.budgetMonth.split('-').map(Number);
-  S.budgetMonth = mkKey(new Date(y, m-1+dir, 1));
+  let nm = m + dir;
+  let ny = y;
+  if(nm > 12){ nm -= 12; ny += 1; }
+  if(nm < 1) { nm += 12; ny -= 1; }
+  const now = new Date();
+  const maxM = now.getMonth() + 2;
+  const maxY = now.getFullYear() + (maxM > 12 ? 1 : 0);
+  const capM = maxM > 12 ? 1 : maxM;
+  if(ny > maxY || (ny === maxY && nm > capM)){
+    showToast('Cannot navigate beyond next month'); return;
+  }
+  S.budgetMonth = ny + '-' + String(nm).padStart(2,'0');
   el('budgetMonthLabel').textContent = mkLabel(S.budgetMonth);
   loadBudgetState();
   renderBudget();

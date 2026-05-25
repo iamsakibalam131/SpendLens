@@ -128,7 +128,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 .src-brac{background:#E8F0FE;color:#1A3A7A;}
 .src-email{background:var(--green-bg);color:var(--green);}
 .src-manual{background:var(--surface2);color:var(--text2);}
-.note-btn{background:none;border:1px solid var(--border);cursor:pointer;color:var(--text3);font-size:10px;padding:2px 7px;border-radius:4px;transition:all 0.15s;margin-top:4px;display:block;width:100%;text-align:center;}
+.note-btn{background:none;border:1px solid var(--border);cursor:pointer;color:var(--text3);font-size:10px;padding:2px 7px;border-radius:4px;transition:all 0.15s;margin-top:3px;display:block;width:100%;text-align:center;font-family:'DM Sans',sans-serif;}
 .note-btn:hover{background:var(--surface2);color:var(--text2);}
 .fix-btn{background:var(--amber-bg);border:1px solid rgba(122,82,14,0.25);cursor:pointer;color:var(--amber);font-size:10px;font-weight:600;padding:3px 8px;border-radius:4px;transition:all 0.15s;margin-top:4px;display:block;width:100%;text-align:center;font-family:'DM Sans',sans-serif;}
 .fix-btn:hover{background:#f5e4b8;}
@@ -436,6 +436,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
         <span class="saved-msg" id="balSaved">✓ Saved</span>
       </div>
     </div>
+    <!-- WEALTH SNAPSHOT -->
+    <div id="wealthSnapshot" style="margin-bottom:22px;"></div>
+
     <div style="font-size:10px;font-weight:500;letter-spacing:0.8px;text-transform:uppercase;color:var(--text3);margin-bottom:12px;">Balance history</div>
     <div class="bal-history" id="balHistory"><div class="empty">No history yet</div></div>
 
@@ -584,6 +587,7 @@ const S = {
   summary: [],
   currentMonth: '',
   budgetMonth: '',
+  budgetState: {},
   txnFilter: 'all',
   noteTargetId: '',
   noteTargetDesc: '',
@@ -601,37 +605,38 @@ const INCOME = 18000;
 const BUDGET = [
   {
     group: 'Shared Apartment',
-    note:  'Split with flatmates — tracked in shared Excel. Lunch & Dinner depends on home meals.',
+    note:  'Split with flatmates. Rent/Wifi/Khala are fixed — tick when paid. Lunch & Dinner vary.',
     fixed: 'partial',
     items: [
-      { name:'Rent (your share)',   budget:3833, fixed:true,  track:'auto' },
-      { name:'Wifi (your share)',   budget:71,   fixed:true,  track:'auto' },
-      { name:'Khala (your share)',  budget:571,  fixed:true,  track:'auto' },
-      { name:'Lunch (your share)',  budget:2400, fixed:false, track:'cash' },
-      { name:'Dinner (your share)', budget:2400, fixed:false, track:'cash' },
+      { name:'Rent (your share)',   budget:3833, fixed:true,  track:'tick' },
+      { name:'Wifi (your share)',   budget:71,   fixed:true,  track:'tick' },
+      { name:'Khala (your share)',  budget:571,  fixed:true,  track:'tick' },
+      { name:'Lunch (your share)',  budget:2400, fixed:false, track:'input' },
+      { name:'Dinner (your share)', budget:2400, fixed:false, track:'input' },
     ]
   },
   {
     group: 'Personal Fixed',
-    note:  'These come out every month regardless.',
+    note:  'These come out automatically each month. Tick when confirmed.',
     fixed: true,
     items: [
-      { name:'Electricity',  budget:300,  fixed:false, track:'auto' },
-      { name:'DPS (bKash)',  budget:2500, fixed:true,  track:'auto' },
-      { name:'DPS (BRAC)',   budget:500,  fixed:true,  track:'auto' },
-      { name:'Savings',      budget:3000, fixed:true,  track:'manual' },
+      { name:'Electricity',  budget:300,  fixed:false, track:'input' },
+      { name:'DPS (bKash)',  budget:2500, fixed:true,  track:'tick' },
+      { name:'DPS (BRAC)',   budget:500,  fixed:true,  track:'tick' },
+      { name:'Savings',      budget:3000, fixed:true,  track:'tick' },
     ]
   },
   {
     group: 'Personal Variable',
-    note:  'Mostly cash — use the cash logger to track. These are estimates.',
+    note:  'Enter your rough estimates for the month. These are mostly cash.',
     fixed: false,
     items: [
-      { name:'Breakfast & Snacks', budget:600,  fixed:false, track:'cash' },
-      { name:'Food miscellaneous', budget:1000, fixed:false, track:'cash' },
-      { name:'Outings',            budget:1000, fixed:false, track:'cash' },
-      { name:'Clothes & Accessories', budget:1700, fixed:false, track:'cash' },
-      { name:'Miscellaneous',      budget:925,  fixed:false, track:'cash' },
+      { name:'Breakfast & Snacks',    budget:600,  fixed:false, track:'input' },
+      { name:'Food miscellaneous',    budget:1000, fixed:false, track:'input' },
+      { name:'Transportation',        budget:800,  fixed:false, track:'input' },
+      { name:'Outings',               budget:1000, fixed:false, track:'input' },
+      { name:'Clothes & Accessories', budget:1700, fixed:false, track:'input' },
+      { name:'Miscellaneous',         budget:925,  fixed:false, track:'input' },
     ]
   },
 ];
@@ -912,6 +917,7 @@ function renderTxnList(filter){
           ? `<button class="fix-btn" onclick="openFixModal('${t.id}','${rawSafe}',${t.amount},'${t.account||t.source}')">✏️ Fix this</button>`
           : `<button class="note-btn" onclick="openNoteModal('${t.id}','${descSafe}','${noteSafe}')">💬 ${note?'edit note':'add note'}</button>`
         }
+        <button class="note-btn" style="color:var(--red);border-color:rgba(176,46,46,0.2);margin-top:3px;" onclick="deleteTxn('${t.id}','${descSafe}')">🗑 delete</button>
       </div>
     </div>`;
   }).join('');
@@ -979,6 +985,7 @@ function renderTrends(){
 
 // ── BALANCE ───────────────────────────────────────────────────────────────────
 function renderBalance(){
+  renderWealthSnapshot();
   const cur = S.balances.find(b=>b.month===S.currentMonth);
   if(cur){
     el('balBrac').value  = cur.bracBank||'';
@@ -1140,7 +1147,7 @@ function showPage(page){
   el('page-'+page).classList.add('active');
   const idx = {overview:0,transactions:1,trends:2,balance:3,budget:4}[page];
   document.querySelectorAll('.nav-item')[idx].classList.add('active');
-  if(page==='budget') renderBudget();
+  if(page==='budget'){ loadBudgetState(); renderBudget(); }
   if(page==='balance') renderDPS();
 }
 
@@ -1174,6 +1181,61 @@ function showError(msg){ const b=el('errorBanner'); b.innerHTML=msg; b.classList
 function showToast(msg){ el('toastMsg').textContent=msg; el('toast').classList.add('show'); setTimeout(()=>el('toast').classList.remove('show'),3500); }
 function closeModal(id){ el(id).classList.remove('open'); }
 function flash(id){ const s=el(id); s.style.display='inline'; setTimeout(()=>s.style.display='none',2500); }
+
+// ── DELETE TRANSACTION ───────────────────────────────────────────────────────
+async function deleteTxn(id, desc){
+  if(!confirm('Delete: "'+desc+'"?\nThis removes it from your Sheet permanently.')) return;
+  try {
+    showLoading('Deleting...');
+    await post('deleteTransaction',{id});
+    // Remove from local state immediately
+    S.transactions = S.transactions.filter(t=>t.id!==id);
+    renderAll();
+    showToast('Transaction deleted');
+  } catch(e){ showToast('Error: '+e.message); }
+  finally { hideLoading(); }
+}
+
+// ── WEALTH SNAPSHOT ───────────────────────────────────────────────────────────
+function renderWealthSnapshot(){
+  const bal = S.balances.find(b=>b.month===S.currentMonth);
+  if(!bal){ el('wealthSnapshot').innerHTML=''; return; }
+
+  const now   = new Date();
+  // Calculate total DPS saved so far across both accounts
+  let dpsTotalSaved = 0;
+  DPS_ACCOUNTS.forEach(dps => {
+    const start  = new Date(dps.startDate);
+    let paid = 0;
+    const cursor = new Date(start);
+    while(cursor <= now && paid < dps.months){ paid++; cursor.setMonth(cursor.getMonth()+1); }
+    dpsTotalSaved += paid * dps.monthly;
+  });
+
+  const bankTotal   = (Number(bal.bracBank)||0) + (Number(bal.abBank)||0);
+  const bkashBal    = Number(bal.bkash)||0;
+  const cash        = Number(bal.cash)||0;
+  const totalLiquid = bankTotal + bkashBal + cash;
+  const netWorth    = totalLiquid + dpsTotalSaved;
+
+  el('wealthSnapshot').innerHTML = `
+    <div style="background:linear-gradient(135deg,#1E3A5F 0%,#2A7A5A 100%);border-radius:14px;padding:22px 26px;color:#fff;">
+      <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;opacity:0.5;margin-bottom:6px;">Total wealth snapshot — ${mkLabel(S.currentMonth)}</div>
+      <div style="font-family:'DM Serif Display',serif;font-size:36px;letter-spacing:-0.8px;margin-bottom:16px;">৳${fmt(netWorth)}</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+        ${[
+          {label:'Bank accounts', value:'৳'+fmt(bankTotal),     sub:'BRAC + AB Bank'},
+          {label:'bKash',         value:'৳'+fmt(bkashBal),      sub:'mobile wallet'},
+          {label:'Cash on hand',  value:'৳'+fmt(cash),          sub:'physical cash'},
+          {label:'DPS savings',   value:'৳'+fmt(dpsTotalSaved), sub:'maturity value accumulating'},
+        ].map(s=>`<div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:10px 12px;">
+          <div style="font-size:10px;opacity:0.55;margin-bottom:4px;">${s.label}</div>
+          <div style="font-size:16px;font-weight:400;">${s.value}</div>
+          <div style="font-size:9px;opacity:0.4;margin-top:2px;">${s.sub}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+}
 
 // ── DPS TRACKER ──────────────────────────────────────────────────────────────
 function renderDPS(){
@@ -1222,155 +1284,179 @@ function renderDPS(){
 // ── BUDGET ────────────────────────────────────────────────────────────────────
 function changeBudgetMonth(dir){
   const [y,m] = S.budgetMonth.split('-').map(Number);
-  const d = new Date(y, m-1+dir, 1);
-  S.budgetMonth = mkKey(d);
+  S.budgetMonth = mkKey(new Date(y, m-1+dir, 1));
   el('budgetMonthLabel').textContent = mkLabel(S.budgetMonth);
+  loadBudgetState();
   renderBudget();
 }
 
-async function renderBudget(){
-  el('budgetMonthLabel').textContent = mkLabel(S.budgetMonth);
+// Budget state: ticks and input values stored per month in localStorage
+function budgetKey(){ return 'budget_'+S.budgetMonth; }
 
-  // Load transactions for this month
-  let txns = S.transactions;
-  if(S.budgetMonth !== S.currentMonth){
-    try { const r=await get('getTransactions',{month:S.budgetMonth}); txns=r.transactions||[]; } catch(e){}
-  }
+function loadBudgetState(){
+  try {
+    const raw = localStorage.getItem(budgetKey());
+    S.budgetState = raw ? JSON.parse(raw) : {};
+  } catch(e){ S.budgetState = {}; }
+}
 
-  const outTxns     = txns.filter(t=>!t.duplicateOf && t.type==='OUT');
-  const totalActual = outTxns.reduce((s,t)=>s+Number(t.amount),0);
-  const totalBudget = BUDGET.reduce((s,g)=>s+g.items.reduce((ss,i)=>ss+i.budget,0),0);
+function saveBudgetState(){
+  try { localStorage.setItem(budgetKey(), JSON.stringify(S.budgetState)); } catch(e){}
+  // Re-render summary only (not full page, to avoid losing focus on inputs)
+  renderBudgetSummary();
+}
 
-  // Detect auto-tracked items from transactions
-  const dpsBkash  = outTxns.filter(t=>t.description&&/bkash.*dps|dps.*bkash/i.test(t.description)).reduce((s,t)=>s+Number(t.amount),0);
-  const dpsBrac   = outTxns.filter(t=>t.description&&/brac.*dps|dps.*brac/i.test(t.description)).reduce((s,t)=>s+Number(t.amount),0);
-  const electricity = outTxns.filter(t=>t.description&&/electric|wasa|utility|bill/i.test(t.description)).reduce((s,t)=>s+Number(t.amount),0);
+function toggleTick(itemName){
+  if(!S.budgetState) S.budgetState = {};
+  S.budgetState[itemName] = !S.budgetState[itemName];
+  const box = document.getElementById('tick_'+itemName.replace(/\W/g,'_'));
+  if(box) box.checked = S.budgetState[itemName];
+  saveBudgetState();
+}
 
-  // Cash withdrawals this month — unallocated pool
-  const cashWithdrawals = outTxns.filter(t=>t.description&&/atm|cash.*withdrawal|withdrawal.*cash/i.test(t.description)).reduce((s,t)=>s+Number(t.amount),0);
+function updateInput(itemName, val){
+  if(!S.budgetState) S.budgetState = {};
+  S.budgetState[itemName] = parseFloat(val)||0;
+  saveBudgetState();
+}
 
-  // Income
-  const totalIn = txns.filter(t=>t.type==='IN').reduce((s,t)=>s+Number(t.amount),0);
-  const income  = totalIn || INCOME;
-  const leftover = income - totalActual;
+function renderBudgetSummary(){
+  if(!S.budgetState) return;
+  const income = INCOME;
+  let totalActual = 0, totalBudget = 0;
 
-  // ── SUMMARY HERO ──────────────────────────────────────────────────────────
+  BUDGET.forEach(g=>g.items.forEach(item=>{
+    totalBudget += item.budget;
+    if(item.track==='tick'){
+      if(S.budgetState[item.name]) totalActual += item.budget;
+    } else {
+      totalActual += parseFloat(S.budgetState[item.name])||0;
+    }
+  }));
+
+  const remaining = income - totalActual;
+  const vsbudget  = totalBudget - totalActual;
+
   el('budgetHero').innerHTML = [
-    { label:'Monthly income',    value:'+৳'+fmt(income),                     sub:'AB Bank salary',                      col:'var(--green)' },
-    { label:'Total budget',      value:'৳'+fmt(totalBudget),                  sub:'all planned expenses',                col:'var(--text)' },
-    { label:'Tracked spending',  value:'৳'+fmt(totalActual),                  sub:'from transactions',                   col: totalActual>totalBudget?'var(--red)':'var(--text)' },
-    { label:'Left after budget', value:(leftover>=0?'+ ':'- ')+'৳'+fmt(Math.abs(income-totalBudget)), sub: income>=totalBudget?'within income':'over income', col:income>=totalBudget?'var(--green)':'var(--red)' },
+    { label:'Monthly income',     value:'+৳'+fmt(income),                              sub:'AB Bank salary',             col:'var(--green)' },
+    { label:'Total budgeted',     value:'৳'+fmt(totalBudget),                           sub:'planned spending',           col:'var(--text)' },
+    { label:'Entered so far',     value:'৳'+fmt(totalActual),                           sub:'ticked + entered amounts',   col:totalActual>totalBudget?'var(--red)':'var(--text)' },
+    { label:'Left from income',   value:(remaining>=0?'+ ':'- ')+'৳'+fmt(Math.abs(remaining)), sub:remaining>=0?'available':'over income', col:remaining>=0?'var(--green)':'var(--red)' },
   ].map(h=>`<div class="metric">
     <div class="metric-label">${h.label}</div>
     <div class="metric-value" style="color:${h.col};font-size:20px;">${h.value}</div>
     <div class="metric-sub">${h.sub}</div>
   </div>`).join('');
+}
 
-  el('budgetSub').textContent = mkLabel(S.budgetMonth)+' · ৳'+fmt(income)+' income · ৳'+fmt(totalBudget)+' budgeted';
+async function renderBudget(){
+  el('budgetMonthLabel').textContent = mkLabel(S.budgetMonth);
+  loadBudgetState();
+  renderBudgetSummary();
 
-  // ── CASH LOGGER BANNER ────────────────────────────────────────────────────
-  let cashBanner = '';
-  if(cashWithdrawals > 0){
-    cashBanner = `<div style="background:var(--amber-bg);border:1px solid rgba(122,82,14,0.2);border-radius:11px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
-      <div>
-        <div style="font-size:12px;font-weight:500;color:var(--amber);margin-bottom:3px;">💵 Cash withdrawn this month: ৳${fmt(cashWithdrawals)}</div>
-        <div style="font-size:11px;color:#5A3C0A;">This cash is untracked. If you spent it on specific things, add manual transactions to keep your budget accurate.</div>
-      </div>
-      <button onclick="openAddModal()" style="background:var(--amber);color:#fff;border:none;padding:7px 14px;border-radius:7px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;">+ Log spending</button>
-    </div>`;
-  }
+  el('budgetSub').textContent = mkLabel(S.budgetMonth)+' · Tick fixed items when paid · Enter estimates for variable';
 
-  // ── SAVINGS BLOCK ─────────────────────────────────────────────────────────
-  const totalDPS     = dpsBkash + dpsBrac || (2500 + 500);
+  // Savings block
   const savingsBlock = `<div style="background:var(--green-bg);border:1px solid rgba(42,122,90,0.2);border-radius:11px;padding:16px 20px;margin-bottom:14px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-      <div style="font-size:10px;font-weight:500;letter-spacing:0.8px;text-transform:uppercase;color:var(--green);">💰 Savings this month</div>
-      <div style="font-size:12px;color:var(--green);font-weight:500;">Fixed · Auto-deducted</div>
+    <div style="font-size:10px;font-weight:500;letter-spacing:0.8px;text-transform:uppercase;color:var(--green);margin-bottom:10px;">💰 Savings & DPS — Fixed</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+      ${DPS_ACCOUNTS.concat([{name:'Savings target',monthly:3000,account:'BRAC Bank transfer'}]).map(d=>{
+        const key  = 'savings_'+d.name.replace(/\W/g,'_');
+        const done = S.budgetState && S.budgetState[key];
+        return `<div style="background:rgba(255,255,255,0.65);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;">
+          <input type="checkbox" id="${key}" ${done?'checked':''} onchange="S.budgetState['${key}']=this.checked;saveBudgetState();" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);">
+          <div>
+            <div style="font-size:12px;font-weight:500;color:var(--text);">${d.name}</div>
+            <div style="font-size:11px;color:var(--text3);">৳${fmt(d.monthly)}/month</div>
+          </div>
+        </div>`;
+      }).join('')}
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
-      ${[
-        {label:'DPS (bKash)',    budget:2500, actual: dpsBkash||2500,  note:'Auto monthly'},
-        {label:'DPS (BRAC)',     budget:500,  actual: dpsBrac||500,    note:'Auto monthly'},
-        {label:'Savings target', budget:3000, actual: 3000,            note:'Transfer to BRAC'},
-      ].map(s=>`<div style="background:rgba(255,255,255,0.6);border-radius:8px;padding:10px 12px;">
-        <div style="font-size:11px;color:var(--green);margin-bottom:4px;">${s.label}</div>
-        <div style="font-size:18px;font-weight:500;color:var(--text);">৳${fmt(s.actual)}</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px;">${s.note}</div>
-      </div>`).join('')}
-    </div>
-    <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(42,122,90,0.15);font-size:12px;color:var(--green);">
-      Total saved this month: <strong>৳${fmt(totalDPS + 3000)}</strong> &nbsp;·&nbsp; ${Math.round(((totalDPS+3000)/income)*100)}% of income
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(42,122,90,0.15);font-size:11px;color:var(--text3);">
+      Total DPS + savings: <strong style="color:var(--green);">৳${fmt(2500+500+3000)}</strong>/month
     </div>
   </div>`;
 
-  // ── GROUP CARDS ───────────────────────────────────────────────────────────
-  const groupCards = BUDGET.map(group => {
-    const groupBudget = group.items.reduce((s,i)=>s+i.budget,0);
-    const isFixed     = group.fixed === true || group.fixed === 'partial';
-
-    // For Personal Fixed group, use auto-detected amounts
-    // For others, actual = budget for fixed items, 0 for variable (user tracks manually)
-    const itemRows = group.items.map(item => {
-      let actual = 0;
-      if(item.name.includes('DPS (bKash)'))   actual = dpsBkash || item.budget;
-      else if(item.name.includes('DPS (BRAC)')) actual = dpsBrac || item.budget;
-      else if(item.name.includes('Electricity')) actual = electricity || 0;
-      else if(item.fixed) actual = item.budget;
-      else actual = 0; // variable — user manually logs or cash logger
-      return { ...item, actual };
-    });
-
-    const groupActual = itemRows.reduce((s,i)=>s+i.actual,0);
-    const groupOver   = groupActual > groupBudget;
+  // Group cards with tick/input
+  const groupCards = BUDGET.map(group=>{
+    const groupBudget  = group.items.reduce((s,i)=>s+i.budget,0);
+    const groupActual  = group.items.reduce((s,item)=>{
+      if(item.track==='tick') return s + (S.budgetState&&S.budgetState[item.name] ? item.budget : 0);
+      return s + (parseFloat(S.budgetState&&S.budgetState[item.name])||0);
+    },0);
+    const over = groupActual > groupBudget;
 
     const fixedBadge = group.fixed===true
       ? '<span style="font-size:10px;padding:2px 7px;border-radius:4px;background:#EEF2FF;color:#4338CA;">Fixed</span>'
       : group.fixed==='partial'
       ? '<span style="font-size:10px;padding:2px 7px;border-radius:4px;background:#FDF0DC;color:#7A520E;">Partial</span>'
-      : '<span style="font-size:10px;padding:2px 7px;border-radius:4px;background:#F0F0F0;color:#666;">Variable</span>';
+      : '<span style="font-size:10px;padding:2px 7px;border-radius:4px;background:#F0F4F8;color:#4A5568;">Variable</span>';
+
+    const rows = group.items.map(item=>{
+      const safeId  = 'item_'+item.name.replace(/\W/g,'_');
+      const actual  = item.track==='tick'
+        ? (S.budgetState&&S.budgetState[item.name] ? item.budget : 0)
+        : (parseFloat(S.budgetState&&S.budgetState[item.name])||0);
+      const diff    = item.budget - actual;
+      const pct     = item.budget>0&&actual>0 ? Math.min(Math.round((actual/item.budget)*100),100) : 0;
+      const fillCls = actual>item.budget?'over':pct>85?'warn':'ok';
+
+      if(item.track==='tick'){
+        const checked = S.budgetState&&S.budgetState[item.name];
+        return `<div class="budget-item-row">
+          <div style="display:flex;align-items:center;gap:10px;flex:1;">
+            <input type="checkbox" id="${safeId}" ${checked?'checked':''} onchange="S.budgetState['${item.name}']=this.checked;saveBudgetState();" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);flex-shrink:0;">
+            <label for="${safeId}" style="font-size:13px;color:var(--text2);cursor:pointer;${checked?'text-decoration:line-through;opacity:0.6':''}">${item.name}</label>
+            <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:#EEF2FF;color:#4338CA;margin-left:4px;">Fixed</span>
+          </div>
+          <div class="budget-amounts">
+            <div class="budget-actual" style="color:${checked?'var(--green)':'var(--text3)'};">${checked?'✓ ৳'+fmt(item.budget):'Pending'}</div>
+            <div class="budget-limit">৳${fmt(item.budget)} budgeted</div>
+          </div>
+        </div>`;
+      } else {
+        const val = S.budgetState&&S.budgetState[item.name] ? S.budgetState[item.name] : '';
+        return `<div class="budget-item-row" style="flex-wrap:wrap;gap:8px;">
+          <div style="flex:1;min-width:140px;">
+            <div style="font-size:13px;color:var(--text2);margin-bottom:4px;">${item.name}</div>
+            <div style="font-size:10px;color:var(--text3);">Budget: ৳${fmt(item.budget)}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+            <div style="position:relative;">
+              <span style="position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text3);">৳</span>
+              <input type="number" id="${safeId}" value="${val}" placeholder="0"
+                oninput="S.budgetState['${item.name}']=parseFloat(this.value)||0;saveBudgetState();"
+                style="width:110px;padding:7px 8px 7px 22px;border:1px solid var(--border2);border-radius:7px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:var(--surface);">
+            </div>
+            ${actual>0?`<div style="text-align:right;min-width:70px;">
+              <div style="font-size:11px;font-weight:500;color:${diff<0?'var(--red)':'var(--green)'};">${diff>=0?'৳'+fmt(diff)+' under':'-৳'+fmt(Math.abs(diff))+' over'}</div>
+              <div style="width:60px;height:4px;background:var(--surface2);border-radius:2px;margin-top:3px;overflow:hidden;">
+                <div style="height:100%;width:${pct}%;background:${fillCls==='over'?'var(--red)':fillCls==='warn'?'#F6A623':'var(--accent)'};border-radius:2px;"></div>
+              </div>
+            </div>`:''}
+          </div>
+        </div>`;
+      }
+    }).join('');
 
     return `<div class="budget-group">
       <div class="budget-group-hdr">
         <div style="display:flex;align-items:center;gap:8px;">
-          <div class="budget-group-name">${group.group}</div>
-          ${fixedBadge}
+          <div class="budget-group-name">${group.group}</div>${fixedBadge}
         </div>
         <div class="budget-group-totals">
-          <span style="color:${groupOver?'var(--red)':'var(--text2)'};">৳${fmt(groupActual)}</span>
-          <span style="color:var(--text3);">/ ৳${fmt(groupBudget)}</span>
+          <span style="color:${over?'var(--red)':'var(--text2)'};">৳${fmt(groupActual)} entered</span>
+          <span style="color:var(--text3);">/ ৳${fmt(groupBudget)} budgeted</span>
         </div>
       </div>
-      ${group.note ? `<div style="font-size:11px;color:var(--text3);padding:8px 20px;border-bottom:1px solid var(--border);font-style:italic;">${group.note}</div>` : ''}
-      ${itemRows.map(item=>{
-        const pct  = item.budget>0 ? Math.min(Math.round((item.actual/item.budget)*100),100) : 0;
-        const over = item.actual > item.budget;
-        const fill = over?'over':pct>85?'warn':'ok';
-        const diff = item.budget - item.actual;
-        const trackBadge = item.track==='auto'
-          ? '<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:#E2F2EB;color:#1A6644;">auto</span>'
-          : item.track==='cash'
-          ? '<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:#FDF0DC;color:#7A520E;">cash</span>'
-          : '<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:#F0F0F0;color:#888;">manual</span>';
-        return `<div class="budget-item-row">
-          <div class="budget-item-name" style="display:flex;align-items:center;gap:6px;">${item.name}${item.fixed?'<span class="budget-item-fixed">Fixed</span>':''}${trackBadge}</div>
-          <div class="budget-bar-col">
-            <div class="budget-bar-track">
-              <div class="budget-bar-fill ${fill}" style="width:${pct}%;"></div>
-            </div>
-            ${item.actual===0&&!item.fixed?'<div style="font-size:9px;color:var(--text3);margin-top:2px;">Not tracked — add manually or log cash</div>':''}
-          </div>
-          <div class="budget-amounts">
-            <div class="budget-actual">${item.actual>0?'৳'+fmt(item.actual):'—'}</div>
-            <div class="budget-limit">of ৳${fmt(item.budget)}</div>
-            ${item.actual>0?`<div class="budget-diff ${diff>=0?'saved':'over'}">${diff>=0?'৳'+fmt(diff)+' left':'-৳'+fmt(Math.abs(diff))+' over'}</div>`:''}
-          </div>
-        </div>`;
-      }).join('')}
+      ${group.note?`<div style="font-size:11px;color:var(--text3);padding:8px 20px;border-bottom:1px solid var(--border);font-style:italic;">${group.note}</div>`:''}
+      ${rows}
     </div>`;
   }).join('');
 
-  el('budgetCategories').innerHTML = cashBanner + savingsBlock + groupCards;
+  el('budgetCategories').innerHTML = savingsBlock + groupCards;
 }
+
 
 // ── GO ────────────────────────────────────────────────────────────────────────
 init();
